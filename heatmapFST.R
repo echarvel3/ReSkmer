@@ -11,13 +11,18 @@ pacman::p_load(pheatmap, tidyverse, reshape2)
 
 
 # Loads Fst table ~
-Fst <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/wc_fst_mat.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
-Fst
+Fst <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_mat_nas.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
+str(Fst)
 # Melt the Fst data frame to long format
 melted_Fst <- melt(Fst, id.vars = "sample", variable.name = "SRR_pair", value.name = "Fst")
 melted_Fst <- melted_Fst[melted_Fst$sample != melted_Fst$SRR_pair, ]
+#head(melted_Fst)
+
+#Replace NAs by 0
+melted_Fst$Fst <- ifelse(is.na(melted_Fst$Fst), 0, melted_Fst$Fst)
+
 colnames(melted_Fst) <- NULL
-melted_Fst
+#melted_Fst
 
 # Adds column names ~
 colnames(melted_Fst) <- c("Pop1", "Pop2", "Weighted")
@@ -45,8 +50,8 @@ Fst_df
 # Gets Fst label ~
 Fst.label = expression(italic("F")[ST])
 
-melted_Fst
-
+str(melted_Fst)
+ 
 # Creates plot ~
 Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) +
   geom_tile(color = "#ffffff", lwd = 1.5, linetype = 1, width = 1, height = 1) +
@@ -75,5 +80,10 @@ Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) 
         legend.title = element_text(colour = "#000000", size = 10, face = "bold"),
         legend.text = element_text(colour = "#000000", size = 10, face="bold"))
 
-ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/fst_test_data/wc_fst_heatmap.jpeg",
+ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_with_nas_heatmap.jpeg",
+       scale = 1, width = 40, height = 40, dpi = 300)
+
+
+
+ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_with_nas_heatmap2.jpeg",
        scale = 1, width = 12, height = 12, dpi = 600)
