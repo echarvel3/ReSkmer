@@ -11,25 +11,25 @@ pacman::p_load(pheatmap, tidyverse, reshape2)
 
 
 # Loads Fst table ~
-Fst <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_mat_nas.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
-str(Fst)
+data <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/with_fam_nas/wc_fst_mat_fam_nas.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
+
+
+#Remove the redundant first column, but the scalability of this need to be checked 
+
+
 # Melt the Fst data frame to long format
-melted_Fst <- melt(Fst, id.vars = "sample", variable.name = "SRR_pair", value.name = "Fst")
-melted_Fst <- melted_Fst[melted_Fst$sample != melted_Fst$SRR_pair, ]
-#head(melted_Fst)
+melted_Fst <- melt(data, id.vars = "sample", variable.name = "SRR_pair", value.name = "Fst")
+#melted_Fst <- melted_Fst[melted_Fst$sample != melted_Fst$SRR_pair, ]
 
 #Replace NAs by 0
 melted_Fst$Fst <- ifelse(is.na(melted_Fst$Fst), 0, melted_Fst$Fst)
 
-colnames(melted_Fst) <- NULL
-#melted_Fst
-
 # Adds column names ~
 colnames(melted_Fst) <- c("Pop1", "Pop2", "Weighted")
-melted_Fst
+
+
 # Melts datasets ~
 Fst_Pops = union(melted_Fst$Pop1, melted_Fst$Pop2)
-Fst_Pops
 n = length(Fst_Pops)
 n
 
@@ -51,7 +51,16 @@ Fst_df
 Fst.label = expression(italic("F")[ST])
 
 str(melted_Fst)
- 
+
+
+
+#oredering
+ordered_Pop1 <- unique(melted_Fst$Pop1)
+ordered_Pop2 <- unique(melted_Fst$Pop2)
+
+
+
+
 # Creates plot ~
 Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) +
   geom_tile(color = "#ffffff", lwd = 1.5, linetype = 1, width = 1, height = 1) +
@@ -59,11 +68,9 @@ Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) 
   geom_text(aes(label = round(Weighted,digits =3)), color = "#ffffff", size = 2) +
   scale_fill_gradientn(colors = c("#fde0dd", "#e46e2a", "#481a03"), 
                        name = "Weighted Fst", 
-                       breaks = c(0,  0.05, 0.10,  0.15, 0.2, 0.25),
-                       labels = c("0", "0.05", "0.10", "0.15", "0.2", "0.25"),
-                       limits = c(0, .25)) +
-  scale_x_discrete(expand = c(0,0))+
-  scale_y_discrete(expand = c(0,0), position = "right")+
+                       limits = c(0, 1)) +
+  scale_x_discrete(labels = ordered_Pop1)+
+  scale_y_discrete(labels = ordered_Pop2, expand = c(0,0), position = "right")+
   labs(x = "Population 1", y = "Population 2", 
        title = "Fst Values between Populations", 
        fill = "Fst") +
@@ -73,6 +80,7 @@ Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) 
         plot.margin = margin(t = 0.005, b = 0.005, r = .4, l = .4, unit = "cm"),
         axis.line = element_blank(),
         axis.text = element_text(colour = "#000000", size = 10, face = "bold"),
+        axis.text.x = element_text( angle = 45, vjust = 1, hjust = 1),
         axis.ticks = element_line(color = "#000000", size = .3),
         legend.position = "right",
         legend.key = element_rect(fill = NA),
@@ -80,10 +88,12 @@ Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) 
         legend.title = element_text(colour = "#000000", size = 10, face = "bold"),
         legend.text = element_text(colour = "#000000", size = 10, face="bold"))
 
-ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_with_nas_heatmap.jpeg",
-       scale = 1, width = 40, height = 40, dpi = 300)
+
+print(Fst_Plot)
+
+ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_fam_nas/wc_fst_with_fam_nas_heatmap2.jpeg",
+       scale = 1, width = 40, height = 40, dpi = 200)
 
 
-
-ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_nas/wc_fst_with_nas_heatmap2.jpeg",
-       scale = 1, width = 12, height = 12, dpi = 600)
+#pheatmap(melted_Fst, cluster_rows = FALSE, cluster_cols = FALSE, border_color = "black", 
+         treeheight_row = 60, treeheight_col = 60, filename = "PG--Fst.pdf") 
