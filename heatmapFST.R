@@ -22,7 +22,7 @@ melted_Fst <- melt(data, id.vars = "sample", variable.name = "SRR_pair", value.n
 #melted_Fst <- melted_Fst[melted_Fst$sample != melted_Fst$SRR_pair, ]
 
 #Replace NAs by 0
-melted_Fst$Fst <- ifelse(is.na(melted_Fst$Fst), 0, melted_Fst$Fst)
+#melted_Fst$Fst <- ifelse(is.na(melted_Fst$Fst), 0, melted_Fst$Fst)
 
 # Adds column names ~
 colnames(melted_Fst) <- c("Pop1", "Pop2", "Weighted")
