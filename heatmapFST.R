@@ -52,25 +52,18 @@ Fst.label = expression(italic("F")[ST])
 
 str(melted_Fst)
 
+#Convert Pop2 to a character variable and reorder its levels to match the order of levels in Pop1.
+melted_Fst$Pop2 <- factor(melted_Fst$Pop2, levels = levels(factor(melted_Fst$Pop1)))
 
-
-#oredering
-ordered_Pop1 <- unique(melted_Fst$Pop1)
-ordered_Pop2 <- unique(melted_Fst$Pop2)
-
-
-
-
-# Creates plot ~
 Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) +
   geom_tile(color = "#ffffff", lwd = 1.5, linetype = 1, width = 1, height = 1) +
   coord_fixed() +
-  geom_text(aes(label = round(Weighted,digits =3)), color = "#ffffff", size = 2) +
+  geom_text(aes(label = round(Weighted, digits = 3)), color = "#ffffff", size = 2) +
   scale_fill_gradientn(colors = c("#fde0dd", "#e46e2a", "#481a03"), 
                        name = "Weighted Fst", 
                        limits = c(0, 1)) +
-  scale_x_discrete(labels = ordered_Pop1)+
-  scale_y_discrete(labels = ordered_Pop2, expand = c(0,0), position = "right")+
+  scale_x_discrete(labels = Pop1) +
+  scale_y_discrete(labels = Pop2, expand = c(0, 0), position = "right") +
   labs(x = "Population 1", y = "Population 2", 
        title = "Fst Values between Populations", 
        fill = "Fst") +
@@ -80,20 +73,18 @@ Fst_Plot <- ggplot(data = melted_Fst, aes(x = Pop1, y = Pop2, fill = Weighted)) 
         plot.margin = margin(t = 0.005, b = 0.005, r = .4, l = .4, unit = "cm"),
         axis.line = element_blank(),
         axis.text = element_text(colour = "#000000", size = 10, face = "bold"),
-        axis.text.x = element_text( angle = 45, vjust = 1, hjust = 1),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
         axis.ticks = element_line(color = "#000000", size = .3),
         legend.position = "right",
         legend.key = element_rect(fill = NA),
         legend.background = element_blank(),
-        legend.title = element_text(colour = "#000000", size = 10, face = "bold"),
-        legend.text = element_text(colour = "#000000", size = 10, face="bold"))
+        legend.title = element_text(colour = "#000000", size = 12, face = "bold"),
+        legend.text = element_text(colour = "#000000", size = 12, face = "bold"))
 
 
-print(Fst_Plot)
+#print(Fst_Plot)
 
 ggsave(Fst_Plot, file = "/Users/sjr729/Desktop/GitHub/Skmer-2/with_fam_nas/wc_fst_with_fam_nas_heatmap2.jpeg",
        scale = 1, width = 40, height = 40, dpi = 200)
 
 
-#pheatmap(melted_Fst, cluster_rows = FALSE, cluster_cols = FALSE, border_color = "black", 
-         treeheight_row = 60, treeheight_col = 60, filename = "PG--Fst.pdf") 
