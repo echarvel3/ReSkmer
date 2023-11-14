@@ -851,11 +851,10 @@ def distance(args):
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    print(results_dist)
     results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
-
+    sys.stderr.write("hi")
     print(results_dist)
     for result in results_dist:
         dist_output = result.get(9999999)
