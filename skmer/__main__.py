@@ -28,10 +28,13 @@ default_error_rate = 0.01
 ##            SKMER-2 EQUATIONS           ##
 ############################################
 
-def get_ref_hist(ref_hist_path):
+def get_ref_hist(lib, sample):
     #TODO: Call jellyfish on ref hist?
-    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None).iloc[:,1] 
-    return ref_hist
+    sample_dir = os.path.join(lib, sample)
+    histo_file = os.path.join(sample_dir, sample + '.hist')
+    ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
+    ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
+    return ref_hist, ksum
 
 def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
     '''calculates exp|AuB|?'''
@@ -51,9 +54,8 @@ def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, nu
 
     return np.dot([1, 1], [nonerr_ins, extra_ins])
 
-def intersection_fnctn(ref_hist_path, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms):
+def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms):
     '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
-    ref_hist = get_ref_hist(ref_hist_path)
 
     lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1
     lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2
@@ -61,10 +63,8 @@ def intersection_fnctn(ref_hist_path, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, 
     eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
     eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
 
-    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
-
     def g(est_d):
-       return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - float(dist_stderr.split()[4].split("/")[0])
+       return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - msh_int
 
     return g 
 
@@ -75,9 +75,6 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     
     sample_dir_1 = os.path.join(lib_1, sample_1)
     sample_dir_2 = os.path.join(lib_2, sample_2)
-
-    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
-    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
 
     gl_1 = le[sample_1]
     gl_2 = le[sample_2]
@@ -95,17 +92,28 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
 
-    r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres)
-    r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
+    hist_1, size_1 = get_ref_hist(lib_1, sample_1)
+    hist_2, size_2 = get_ref_hist(lib_2, sample_2)
 
-    wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
-    zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
-    # d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
+    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+
+    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+    i = j * (size_1 + size_2) / (1 + j)
+
+    # r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres)
+    # r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
+
+    # wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
+    # zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
+    # # d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
 
     num_terms=5
-    ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist")
+    ref_hist_path = "/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist"
+    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None).iloc[:, 1]
     
-    d = brenth(intersection_fnctn(ref_hist, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+    d = brenth(intersection_fnctn(ref_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
     print(d)
 
     if tran:
@@ -152,6 +160,8 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
 def cov_temp_func(x, r, p, k, l):
     lam = x * (1.0 * (l - k)) / l
     return lam * (p ** 2) * np.exp(-lam * p) - 2 * r * (p * np.exp(-lam * p) + 1 - p)
+
+
 
 
 def estimate_cov(sequence, lib, k, e, nth):
