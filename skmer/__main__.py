@@ -30,12 +30,8 @@ default_error_rate = 0.01
 
 def get_ref_hist(ref_hist_path):
     #TODO: Call jellyfish on ref hist?
-    ref_hist = ref_hist_path
+    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None).iloc[:,1] 
     return ref_hist
-
-def get_hist_skim_ins():
-    mash_intersection = 0 
-    return(mash_intersection)
 
 def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
     '''calculates exp|AuB|?'''
@@ -107,7 +103,7 @@ def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thre
     d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
 
     num_terms=5
-    ref_hist = "PATH TO REF"
+    ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.jf")
     
     d = brenth(intersection_fnctn(ref_hist, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
 
