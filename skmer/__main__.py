@@ -106,6 +106,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist")
     
     d = brenth(intersection_fnctn(ref_hist, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+    print(d)
 
     if tran:
         if d < 0.75:
