@@ -69,7 +69,7 @@ def intersection_fnctn(ref_hist_path, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, 
     return g 
 
 
-def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
+def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     
@@ -103,7 +103,7 @@ def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thre
     d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
 
     num_terms=5
-    ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.jf")
+    ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist")
     
     d = brenth(intersection_fnctn(ref_hist, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
 
@@ -317,7 +317,7 @@ def dist_temp_func(cov, eps, k, l, cov_thres):
         return [1 - np.exp(-lam * p) * sum(s), 0]
 
 
-def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
+def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     sample_dir_1 = os.path.join(lib_1, sample_1)
