@@ -100,7 +100,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
 
     wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
     zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
-    d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
+    # d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
 
     num_terms=5
     ref_hist = get_ref_hist("/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist")
@@ -854,6 +854,7 @@ def distance(args):
                                                                err_est, read_len, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
 
+    print(results_dist)
     for result in results_dist:
         dist_output = result.get(9999999)
         result_df[(dist_output[0], dist_output[1])] = [repr(dist_output[2])]
