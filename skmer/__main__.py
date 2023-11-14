@@ -16,7 +16,7 @@ from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
 # import glob
 
-__version__ = 'skmer 3.3.0'
+__version__ = 'skmer 4.3.0'
 
 # Hard-coded param
 coverage_threshold = 5
