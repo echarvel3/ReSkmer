@@ -3,7 +3,7 @@
 
 
 import numpy as np
-from scipy.optimize import newton
+from scipy.optimize import newton, brenth
 import argparse
 import os
 import shutil
@@ -14,6 +14,7 @@ import pandas as pd
 import subprocess
 from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
+# import glob
 
 __version__ = 'skmer 3.3.0'
 
@@ -23,6 +24,101 @@ error_rate_threshold = 0.03
 seq_len_threshold = 2000
 default_error_rate = 0.01
 
+############################################
+##            SKMER-2 EQUATIONS           ##
+############################################
+
+def get_ref_hist(ref_hist_path):
+    #TODO: Call jellyfish on ref hist?
+    ref_hist = ref_hist_path
+    return ref_hist
+
+def get_hist_skim_ins():
+    mash_intersection = 0 
+    return(mash_intersection)
+
+def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
+    '''calculates exp|AuB|?'''
+    sliced_ref_hist = ref_hist[:num_terms].copy()
+    sliced_ref_hist[num_terms-1] += ref_hist[num_terms:].sum()
+
+    nonerr_term1 = 1 - np.power(1-eta1, 1 + np.arange(num_terms))
+    nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), 1 + np.arange(num_terms))
+    nonerr_ins = np.dot(sliced_ref_hist, nonerr_term1*nonerr_term2)
+
+    n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(1 + np.arange(ref_hist.shape[0]))
+    n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*(1 + np.arange(ref_hist.shape[0]))
+    n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*(1 + np.arange(ref_hist.shape[0]))
+    term1 = 1 - np.exp(-1*n1)
+    term2= 1 - np.exp(-1*(n21 + n22))
+    extra_ins = 3*k*np.dot(ref_hist, term1*term2)
+
+    return np.dot([1, 1], [nonerr_ins, extra_ins])
+
+def intersection_fnctn(ref_hist_path, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms):
+    '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
+    ref_hist = get_ref_hist(ref_hist_path)
+
+    lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1
+    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2
+
+    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
+    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
+
+    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+
+    def g(est_d):
+       return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - float(dist_stderr.split()[4].split("/")[0])
+
+    return g 
+
+
+def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
+    if sample_1 == sample_2 and lib_1 == lib_2:
+        return sample_1, sample_2, 0.0
+    
+    sample_dir_1 = os.path.join(lib_1, sample_1)
+    sample_dir_2 = os.path.join(lib_2, sample_2)
+
+    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+
+    gl_1 = le[sample_1]
+    gl_2 = le[sample_2]
+
+    if gl_1 == "NA" or gl_2 == "NA":
+        gl_1 = 1
+        gl_2 = 1
+
+    cov_1 = ce[sample_1]
+    cov_2 = ce[sample_2]
+
+    eps_1 = ee[sample_1]
+    eps_2 = ee[sample_2]
+
+    l_1 = rl[sample_1]
+    l_2 = rl[sample_2]
+
+    r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres)
+    r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
+
+    wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
+    zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
+    d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
+
+    num_terms=5
+    ref_hist = "PATH TO REF"
+    
+    d = brenth(intersection_fnctn(ref_hist, msh_1, msh_2, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+
+    if tran:
+        if d < 0.75:
+            d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
+        else:
+            d = 5.0
+    return sample_1, sample_2, d
+
+############################################
 
 def sequence_stat(sequence):
     total_length = 0
@@ -305,8 +401,10 @@ def reference(args):
     # Computing coverage, genome length, error rate, and read length
     sys.stderr.write('[skmer] Estimating coverages using {0} processors...\n'.format(n_proc_cov))
     pool_cov = mp.Pool(n_pool)
+
     results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
                    for seq in sequences]
+    
     for result in results_cov:
         (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
         cov_est[name] = coverage
@@ -923,7 +1021,7 @@ def main():
 
     # Subsample command subparser
     parser_bt = subparsers.add_parser('subsample',
-                                       description='Performs  subsample on a library of reference genome-skims or assemblies')
+                                       description='Performs subsample on a library of reference genome-skims or assemblies')
     parser_bt.add_argument('input_dir',
                             help='Directory of input genome-skims or assemblies (dir of .fastq/.fq/.fa/.fna/.fasta files)')
     #parser_bt.add_argument('-l', default=os.path.join(os.getcwd(), 'library'),
@@ -975,6 +1073,7 @@ def main():
     parser_dist.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                              help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                   'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
+    # parser_dist.add_argument('-f', type=bool)
     parser_dist.set_defaults(func=distance)
 
     # query command subparser
