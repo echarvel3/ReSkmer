@@ -85,13 +85,10 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
 
     cov_1 = ce[sample_1]
     cov_2 = ce[sample_2]
-
     eps_1 = ee[sample_1]
     eps_2 = ee[sample_2]
-
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
-
     hist_1, size_1 = get_ref_hist(lib_1, sample_1)
     hist_2, size_2 = get_ref_hist(lib_2, sample_2)
 
@@ -102,16 +99,11 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
     i = j * (size_1 + size_2) / (1 + j)
 
-    # r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres)
-    # r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
-
-    # wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
-    # zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
-    # # d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
-
     num_terms=5
     ref_hist_path = "/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist"
     ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None).iloc[:, 1]
+
+    print(ref_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
     
     d = brenth(intersection_fnctn(ref_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
     print(d)
@@ -864,8 +856,7 @@ def distance(args):
     results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
-    sys.stderr.write("hi")
-    print(results_dist)
+
     for result in results_dist:
         dist_output = result.get(9999999)
         result_df[(dist_output[0], dist_output[1])] = [repr(dist_output[2])]
