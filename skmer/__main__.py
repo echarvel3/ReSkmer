@@ -101,12 +101,14 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
 
     num_terms=5
     ref_hist_path = "/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist"
-    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None).iloc[:, 1]
+    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None)
+    genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
+    adjusted_hist = ref_hist.iloc[:, 1] * gl_1 / genome_size
 
-    print(ref_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
-    
-    d = brenth(intersection_fnctn(ref_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
-    print(d)
+    print(sample_1, sample_2)
+    print(adjusted_hist, ref_hist,  genome_size, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
+    d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+    print(sample_1, sample_2, d , "\n")
 
     if tran:
         if d < 0.75:
