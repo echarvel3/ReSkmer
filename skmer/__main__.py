@@ -34,7 +34,8 @@ def get_ref_hist(lib, sample):
     histo_file = os.path.join(sample_dir, sample + '.hist')
     ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
     ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
-    return ref_hist, ksum
+    usum = sum(ref_hist.iloc[:, 1])
+    return ref_hist, ksum, usum
 
 def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
     '''calculates exp|AuB|?'''
@@ -89,24 +90,36 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     eps_2 = ee[sample_2]
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
-    hist_1, size_1 = get_ref_hist(lib_1, sample_1)
-    hist_2, size_2 = get_ref_hist(lib_2, sample_2)
+    hist_1, size_1, usize_1 = get_ref_hist(lib_1, sample_1)
+    hist_2, size_2, usize_2 = get_ref_hist(lib_2, sample_2)
 
     msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
     msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
 
     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
-    i = j * (size_1 + size_2) / (1 + j)
+    i = j * (usize_1 + usize_2) / (1 + j)
 
     num_terms=5
-    ref_hist_path = "/home/echarvel/rhododendron_data/new_downloaded_data/rhod_genome.hist"
+    ref_hist_path = "/home/echarvel/rhododendron_data/rhod_genome.hist"
     ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None)
     genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
-    adjusted_hist = ref_hist.iloc[:, 1] * gl_1 / genome_size
+    adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
+    alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
 
     print(sample_1, sample_2)
-    print(adjusted_hist, ref_hist,  genome_size, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
+    print(adjusted_hist, ref_hist, j, genome_size, alen, gl_1, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
+    lam1 = cov_1 * (l_1 - k + 1) / l_1
+    lam2 = cov_2 * (l_2 - k + 1) / l_2
+
+    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
+    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
+
+    for x in range(0,5):
+        z=x/100.0
+        print(z, estimate_intersection(adjusted_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), i)
+
+
     d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
     print(sample_1, sample_2, d , "\n")
 
