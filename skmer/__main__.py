@@ -28,6 +28,19 @@ default_error_rate = 0.01
 ##            SKMER-2 EQUATIONS           ##
 ############################################
 
+def parse_reference(reference_path):
+    ext=reference_path.split('.')[-1]
+    ref_hist=None
+    if (ext == 'hist'):
+        ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None)
+    elif (ext == 'txt'):
+        #TODO: encode support for RESPECT output.
+        sys.stderr.write('RESPECT output not yet supported.')
+    elif (ext[0] == 'f'):
+        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence], stderr=open(os.devnull, 'w'))
+        histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
+    return ref_hist
+
 def get_ref_hist(lib, sample):
     #TODO: Call jellyfish on ref hist?
     sample_dir = os.path.join(lib, sample)
@@ -70,7 +83,7 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
     return g 
 
 
-def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
+def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_path):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     
@@ -101,23 +114,22 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     i = j * (usize_1 + usize_2) / (1 + j)
 
     num_terms=5
-    ref_hist_path = "/home/echarvel/rhododendron_data/rhod_genome.hist"
-    ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None)
+    ref_hist_path = parse_reference(ref_path)
     genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
     adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
     alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
 
-    print(sample_1, sample_2)
-    print(adjusted_hist, ref_hist, j, genome_size, alen, gl_1, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
-    lam1 = cov_1 * (l_1 - k + 1) / l_1
-    lam2 = cov_2 * (l_2 - k + 1) / l_2
+#    print(sample_1, sample_2)
+#    print(adjusted_hist, ref_hist, j, genome_size, alen, gl_1, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
+#    lam1 = cov_1 * (l_1 - k + 1) / l_1
+#    lam2 = cov_2 * (l_2 - k + 1) / l_2
 
-    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
-    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
+#    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
+#    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
 
-    for x in range(0,5):
-        z=x/100.0
-        print(z, estimate_intersection(adjusted_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), i)
+#    for x in range(0,5):
+#        z=x/100.0
+#        print(z, estimate_intersection(adjusted_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), i)
 
 
     d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
@@ -868,9 +880,16 @@ def distance(args):
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+
+    if args.r is not None:
+        results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, coverage_threshold, args.t, args.r))
+                    for r1 in refs for r2 in refs]
+    else:
+        results_dist = [pool_dist.apply_async(estimate_dist2, args=(r1, r2, args.library, args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
+
 
     for result in results_dist:
         dist_output = result.get(9999999)
@@ -1087,7 +1106,7 @@ def main():
     parser_dist.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                              help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                   'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
-    # parser_dist.add_argument('-f', type=bool)
+    parser_dist.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_dist.set_defaults(func=distance)
 
     # query command subparser
