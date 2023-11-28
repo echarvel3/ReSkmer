@@ -114,7 +114,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     i = j * (usize_1 + usize_2) / (1 + j)
 
     num_terms=5
-    ref_hist_path = parse_reference(ref_path)
+    ref_hist = parse_reference(ref_path)
     genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
     adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
     alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
