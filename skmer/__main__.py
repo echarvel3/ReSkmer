@@ -116,10 +116,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
-<<<<<<< HEAD
     #TODO: Error Occurs here! Genomes don't have ".hist" files.
-=======
->>>>>>> master
     hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
     hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
 
