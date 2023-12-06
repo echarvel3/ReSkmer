@@ -14,6 +14,7 @@ import pandas as pd
 import subprocess
 from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
+import io
 # import glob
 
 __version__ = 'skmer 4.3.0'
@@ -28,20 +29,25 @@ default_error_rate = 0.01
 ##            SKMER-2 EQUATIONS           ##
 ############################################
 
-def parse_reference(reference_path):
+def parse_reference(reference_path, k, nth, library):
     ext=reference_path.split('.')[-1]
     ref_hist=None
     if (ext == 'hist'):
-        ref_hist = pd.read_csv(ref_hist_path, sep=' ', header=None)
+        ref_hist = pd.read_csv(reference_path, sep=' ', header=None)
     elif (ext == 'txt'):
         #TODO: encode support for RESPECT output.
         sys.stderr.write('RESPECT output not yet supported.')
     elif (ext[0] == 'f'):
-        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence], stderr=open(os.devnull, 'w'))
-        histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
+        sample = os.path.basename(reference_path).rsplit('.f', 1)[0]
+        mercnt = os.path.join(library, sample+".jf")
+        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, reference_path], stderr=open(os.devnull, 'w'))
+        histo_stderr = io.StringIO(check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True))
+        os.remove(mercnt)
+        ref_hist = pd.read_csv(histo_stderr, sep=' ', header=None)
+    
     return ref_hist
 
-def get_ref_hist(lib, sample):
+def get_hist_data(lib, sample):
     #TODO: Call jellyfish on ref hist?
     sample_dir = os.path.join(lib, sample)
     histo_file = os.path.join(sample_dir, sample + '.hist')
@@ -90,7 +96,7 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
     return g 
 
 
-def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_path):
+def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_hist):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     
@@ -110,8 +116,8 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
-    hist_1, size_1, usize_1 = get_ref_hist(lib_1, sample_1)
-    hist_2, size_2, usize_2 = get_ref_hist(lib_2, sample_2)
+    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
 
     msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
     msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
@@ -121,7 +127,6 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     i = j * (usize_1 + usize_2) / (1 + j)
 
     num_terms=5
-    ref_hist = parse_reference(ref_path)
     genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
     adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
     alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
@@ -889,8 +894,9 @@ def distance(args):
     pool_dist = mp.Pool(n_pool_dist)
 
     if args.r is not None:
+        ref_hist=parse_reference(args.r, kl, args.p, args.library)
         results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t, args.r))
+                                                               err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
                     for r1 in refs for r2 in refs]
     else:
         results_dist = [pool_dist.apply_async(estimate_dist2, args=(r1, r2, args.library, args.library, cov_est, len_est,
