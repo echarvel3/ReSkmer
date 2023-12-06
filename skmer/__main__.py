@@ -85,7 +85,7 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
     '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
 
     lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1 if read_len_1 != "NA" else None 
-    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2 if read_len_1 != "NA" else None
+    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2 if read_len_2 != "NA" else None
 
     eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k)) if eps_1 else 1
     eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k)) if eps_2 else 1
@@ -116,6 +116,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
+    #TODO: Error Occurs here! Genomes don't have ".hist" files.
     hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
     hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
 
@@ -206,6 +207,7 @@ def estimate_cov(sequence, lib, k, e, nth):
     info_file = os.path.join(sample_dir, sample + '.dat')
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
+    #TODO: Error Occurs here! Genomes don't generate ".hist" files.
     if ml > seq_len_threshold:
         cov = "NA"
         g_len = tl
