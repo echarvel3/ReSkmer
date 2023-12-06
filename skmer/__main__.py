@@ -59,11 +59,18 @@ def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, nu
     nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), 1 + np.arange(num_terms))
     nonerr_ins = np.dot(sliced_ref_hist, nonerr_term1*nonerr_term2)
 
-    n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(1 + np.arange(ref_hist.shape[0]))
-    n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*(1 + np.arange(ref_hist.shape[0]))
-    n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*(1 + np.arange(ref_hist.shape[0]))
+    if eps1:
+        n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(1 + np.arange(ref_hist.shape[0]))
+    else:
+        n1 = 0
+    if eps2:
+        n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*(1 + np.arange(ref_hist.shape[0]))
+        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*(1 + np.arange(ref_hist.shape[0]))
+    else:
+        n21 = 0
+        n22 = 0
     term1 = 1 - np.exp(-1*n1)
-    term2= 1 - np.exp(-1*(n21 + n22))
+    term2 = 1 - np.exp(-1*(n21 + n22))
     extra_ins = 3*k*np.dot(ref_hist, term1*term2)
 
     return np.dot([1, 1], [nonerr_ins, extra_ins])
@@ -71,11 +78,11 @@ def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, nu
 def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms):
     '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
 
-    lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1
-    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2
+    lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1 if read_len_1 != "NA" else None 
+    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2 if read_len_1 != "NA" else None
 
-    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
-    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
+    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k)) if eps_1 else 1
+    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k)) if eps_2 else 1
 
     def g(est_d):
        return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - msh_int
@@ -93,14 +100,14 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     gl_1 = le[sample_1]
     gl_2 = le[sample_2]
 
-    if gl_1 == "NA" or gl_2 == "NA":
-        gl_1 = 1
-        gl_2 = 1
+    #if gl_1 == "NA" or gl_2 == "NA":
+    #    gl_1 = 1
+    #    gl_2 = 1
 
     cov_1 = ce[sample_1]
     cov_2 = ce[sample_2]
-    eps_1 = ee[sample_1]
-    eps_2 = ee[sample_2]
+    eps_1 = ee[sample_1] if ee[sample_1] != "NA" else None
+    eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
     hist_1, size_1, usize_1 = get_ref_hist(lib_1, sample_1)
