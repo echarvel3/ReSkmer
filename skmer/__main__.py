@@ -48,7 +48,6 @@ def parse_reference(reference_path, k, nth, library):
     return ref_hist
 
 def get_hist_data(lib, sample):
-    #TODO: Call jellyfish on ref hist?
     sample_dir = os.path.join(lib, sample)
     histo_file = os.path.join(sample_dir, sample + '.hist')
     ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
@@ -81,7 +80,7 @@ def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, nu
 
     return np.dot([1, 1], [nonerr_ins, extra_ins])
 
-def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms):
+def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms, log_funct = False):
     '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
 
     lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1 if read_len_1 != "NA" else None 
@@ -89,7 +88,16 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
 
     eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k)) if eps_1 else 1
     eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k)) if eps_2 else 1
+    
+    if log_funct:
+        for x in range(0,20):
+            z=x/100.0
+            print(z,estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), msh_int) 
 
+    zde = estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k, num_terms)
+    if -(zde - msh_int) / zde < 0.01:
+        msh_int = zde
+        
     def g(est_d):
        return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - msh_int
 
@@ -97,63 +105,71 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
 
 
 def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_hist):
-    if sample_1 == sample_2 and lib_1 == lib_2:
-        return sample_1, sample_2, 0.0
-    
-    sample_dir_1 = os.path.join(lib_1, sample_1)
-    sample_dir_2 = os.path.join(lib_2, sample_2)
+    try:
+        if sample_1 == sample_2 and lib_1 == lib_2:
+            return sample_1, sample_2, 0.0
+        
+        sample_dir_1 = os.path.join(lib_1, sample_1)
+        sample_dir_2 = os.path.join(lib_2, sample_2)
 
-    gl_1 = le[sample_1]
-    gl_2 = le[sample_2]
+        gl_1 = le[sample_1]
+        gl_2 = le[sample_2]
 
-    #if gl_1 == "NA" or gl_2 == "NA":
-    #    gl_1 = 1
-    #    gl_2 = 1
+        #if gl_1 == "NA" or gl_2 == "NA":
+        #    gl_1 = 1
+        #    gl_2 = 1
 
-    cov_1 = ce[sample_1]
-    cov_2 = ce[sample_2]
-    eps_1 = ee[sample_1] if ee[sample_1] != "NA" else None
-    eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
-    l_1 = rl[sample_1]
-    l_2 = rl[sample_2]
-    #TODO: Error Occurs here! Genomes don't have ".hist" files.
-    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
-    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
+        cov_1 = ce[sample_1]
+        cov_2 = ce[sample_2]
+        eps_1 = ee[sample_1] if ee[sample_1] != "NA" else None
+        eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
+        l_1 = rl[sample_1]
+        l_2 = rl[sample_2]
+        #TODO: Error Occurs here! Genomes don't have ".hist" files.
+        hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+        hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
 
-    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
-    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+        msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+        msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
 
-    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
-    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
-    i = j * (usize_1 + usize_2) / (1 + j)
+        dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+        j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+        i = j * (usize_1 + usize_2) / (1.0 + j)
 
-    num_terms=5
-    genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
-    adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
-    alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
+        num_terms= min(5,len(ref_hist))
+        genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
+        adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
+        alenunad = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))
+        alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
 
-#    print(sample_1, sample_2)
-#    print(adjusted_hist, ref_hist, j, genome_size, alen, gl_1, size_1, size_2, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, "\n")
-#    lam1 = cov_1 * (l_1 - k + 1) / l_1
-#    lam2 = cov_2 * (l_2 - k + 1) / l_2
+        if False:
+            print(sample_1, sample_2)
+            print(adjusted_hist, ref_hist)
+            print("jaccard:", j, alen, alenunad, 
+                  "reference genome size:", genome_size, 
+                  "genome size:", gl_1, gl_2, 
+                  "kmer set sizes:", usize_1, usize_2, 
+                  "intersection:", i, 
+                  "coverages:", cov_1, cov_2, 
+                  "epsilon:", eps_1,  eps_2, 
+                  "read lengths:", l_1, l_2, 
+                  "kmer size:", k, 
+                  "num terms:", num_terms, "\n")
 
-#    eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k))
-#    eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k))
+        #intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True)
 
-#    for x in range(0,5):
-#        z=x/100.0
-#        print(z, estimate_intersection(adjusted_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), i)
-
-
-    d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
-    print(sample_1, sample_2, d , "\n")
-
-    if tran:
-        if d < 0.75:
-            d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
-        else:
-            d = 5.0
-    return sample_1, sample_2, d
+        d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+        #print(sample_1, sample_2, d , "\n")
+        #print("----------------------------------")
+        if tran:
+            if d < 0.75:
+                d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
+            else:
+                d = 5.0
+        return sample_1, sample_2, d
+    except Exception as e:
+        print(e)
+        return sample_1, sample_2, None
 
 ############################################
 
@@ -194,8 +210,6 @@ def cov_temp_func(x, r, p, k, l):
     return lam * (p ** 2) * np.exp(-lam * p) - 2 * r * (p * np.exp(-lam * p) + 1 - p)
 
 
-
-
 def estimate_cov(sequence, lib, k, e, nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
@@ -205,6 +219,15 @@ def estimate_cov(sequence, lib, k, e, nth):
         if Error.errno != errno.EEXIST:
             raise
     info_file = os.path.join(sample_dir, sample + '.dat')
+
+    mercnt = os.path.join(sample_dir, sample + '.jf')
+    histo_file = os.path.join(sample_dir, sample + '.hist')
+    call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
+         stderr=open(os.devnull, 'w'))
+    histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
+    with open(histo_file, mode='w') as f:
+        f.write(histo_stderr)
+    os.remove(mercnt)
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
     #TODO: Error Occurs here! Genomes don't generate ".hist" files.
@@ -218,14 +241,6 @@ def estimate_cov(sequence, lib, k, e, nth):
                     'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
         return sample, cov, g_len, eps, l
 
-    mercnt = os.path.join(sample_dir, sample + '.jf')
-    histo_file = os.path.join(sample_dir, sample + '.hist')
-    call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
-         stderr=open(os.devnull, 'w'))
-    histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
-    with open(histo_file, mode='w') as f:
-        f.write(histo_stderr)
-    os.remove(mercnt)
     count = [0]
     ksum = 0
     for item in histo_stderr.split('\n')[:-1]:
@@ -317,7 +332,7 @@ def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     return
 
 
-def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed):
+def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_ref):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     msh = os.path.join(sample_dir, sample)
@@ -330,9 +345,9 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed):
     elif eps == "NA":
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
-
+        return
     copy_thres = int(cov / cov_thres) + 1
-    if cov < cov_thres or eps == 0.0:
+    if cov < cov_thres or eps == 0.0 or has_ref:
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
     else:
@@ -457,8 +472,14 @@ def reference(args):
     # Sketching genome-skims
     sys.stderr.write('[skmer] Sketching sequences using {0} processors...\n'.format(n_pool))
     pool_sketch = mp.Pool(n_pool)
-    results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
-                                                            coverage_threshold, args.S)) for seq in sequences]
+
+    if args.r is not None:
+        results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
+                                                            coverage_threshold, args.S, True)) for seq in sequences]
+    else:
+        results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
+                                                            coverage_threshold, args.S, False)) for seq in sequences]
+    
     for result in results_sketch:
         result.get(9999999)
     pool_sketch.close()
