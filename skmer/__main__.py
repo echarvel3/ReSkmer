@@ -34,17 +34,16 @@ def parse_reference(reference_path, k, nth, library):
     ref_hist=None
     if (ext == 'hist'):
         ref_hist = pd.read_csv(reference_path, sep=' ', header=None)
-    elif (ext == 'txt'):
-        #TODO: encode support for RESPECT output.
-        sys.stderr.write('RESPECT output not yet supported.')
+    elif (ext == 'txt'):       
+        ref_hist = pd.read_csv(reference_path, sep='\t', header=0).drop(labels='sample', axis=1).transpose().iloc[:,0] 
     elif (ext[0] == 'f'):
         sample = os.path.basename(reference_path).rsplit('.f', 1)[0]
-        mercnt = os.path.join(library, sample+".jf")
+        mercnt = os.path.join(library, sample + ".jf")
         call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, reference_path], stderr=open(os.devnull, 'w'))
         histo_stderr = io.StringIO(check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True))
         os.remove(mercnt)
         ref_hist = pd.read_csv(histo_stderr, sep=' ', header=None)
-    
+
     return ref_hist
 
 def get_hist_data(lib, sample):
@@ -230,7 +229,6 @@ def estimate_cov(sequence, lib, k, e, nth):
     os.remove(mercnt)
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
-    #TODO: Error Occurs here! Genomes don't generate ".hist" files.
     if ml > seq_len_threshold:
         cov = "NA"
         g_len = tl
@@ -410,6 +408,7 @@ def estimate_dist2(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thre
 
 
 def reference(args):
+    # TODO: HOW TO CHECK IF LIBRARY HAS BEEN CONSTRUCTED FOR REFERENCE OR NOT.
     # Creating a directory for reference library
     try:
         os.makedirs(args.l)
@@ -488,9 +487,17 @@ def reference(args):
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, args.l, args.l, cov_est, len_est, err_est,
-                                                               read_len, args.k, coverage_threshold, args.t))
+
+    if args.r is not None:
+        ref_hist=parse_reference(args.r, args.k, args.p, args.l)
+        results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
+                                                               err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                     for s1 in samples_names for s2 in samples_names]
+    else:
+        results_dist = [pool_dist.apply_async(estimate_dist2, args=(s1, s2, args.l, args.l, cov_est, len_est,
+                                                               err_est, read_len, args.k, coverage_threshold, args.t))
+                    for s1 in samples_names for s2 in samples_names]
+
 
     for result in results_dist:
         dist_output = result.get(9999999)
