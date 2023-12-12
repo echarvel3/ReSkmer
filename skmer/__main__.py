@@ -172,6 +172,15 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
 
 ############################################
 
+############################################
+##               FST   CODE               ##
+############################################
+
+def fst(args):
+    return None
+
+############################################
+
 def sequence_stat(sequence):
     total_length = 0
     n_reads = 0
@@ -1049,7 +1058,6 @@ def query(args):
 
     shutil.rmtree(sample_dir)
 
-
 def main():
     # Input arguments parser
     parser = argparse.ArgumentParser(description='{0} - Estimating genomic distances between '.format(__version__) +
@@ -1093,6 +1101,7 @@ def main():
     parser_ref.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
+    parser_ref.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_ref.set_defaults(func=reference)
 
     # Subsample command subparser
@@ -1169,6 +1178,14 @@ def main():
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_qry.set_defaults(func=query)
+
+    # fst command subparser
+    parser_fst = subparsers.add_parser('fst',
+                                       description='Given an annotation file and a reference distance matrix, it will output the fst matrices of different populations.')
+    parser_fst.add_argument('matrix', help='Path to distance matrix')
+    parser_fst.add_argument('annotation', help='Path to annotation file. A TSV file with the 1st column being the file name and the 2nd the population name')
+    parser_fst.add_argument('-o', help='Path to output matrices.')
+    parser_fst.set_defaults(func=fst)
 
     args = parser.parse_args()
 
