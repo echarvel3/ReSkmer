@@ -94,7 +94,8 @@ def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1
             print(z,estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), msh_int) 
 
     zde = estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k, num_terms)
-    if -(zde - msh_int) / zde < 0.01:
+    if (((zde - msh_int) / zde) < 0.01):
+        #if (((zde - msh_int) / zde) > -0.01):
         msh_int = zde
         
     def g(est_d):
@@ -124,7 +125,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
         l_1 = rl[sample_1]
         l_2 = rl[sample_2]
-        #TODO: Error Occurs here! Genomes don't have ".hist" files.
+        
         hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
         hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
 
@@ -141,7 +142,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         alenunad = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))
         alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
 
-        if False:
+        if True:
             print(sample_1, sample_2)
             print(adjusted_hist, ref_hist)
             print("jaccard:", j, alen, alenunad, 
@@ -155,11 +156,11 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
                   "kmer size:", k, 
                   "num terms:", num_terms, "\n")
 
-        #intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True)
+        intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True)
 
         d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
-        #print(sample_1, sample_2, d , "\n")
-        #print("----------------------------------")
+        print(sample_1, sample_2, d , "\n")
+        print("----------------------------------")
         if tran:
             if d < 0.75:
                 d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
