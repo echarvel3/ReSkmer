@@ -138,14 +138,21 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
 
         num_terms= min(5,len(ref_hist))
         genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
-        adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
-        alenunad = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))
-        alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
+
+        if (False):
+            adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
+        else:
+            adjusted_hist = ref_hist.iloc[:, 1]
+            cov_1 *= float(gl_1/genome_size)
+            cov_2 *= float(gl_2/genome_size)
 
         if True:
+            num_unique_kmers = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))
+            alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
+
             print(sample_1, sample_2)
             print(adjusted_hist, ref_hist)
-            print("jaccard:", j, alen, alenunad, 
+            print("jaccard:", j, alen, num_unique_kmers, 
                   "reference genome size:", genome_size, 
                   "genome size:", gl_1, gl_2, 
                   "kmer set sizes:", usize_1, usize_2, 
