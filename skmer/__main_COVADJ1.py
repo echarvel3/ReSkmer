@@ -145,8 +145,8 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
             adjusted_hist = ref_hist.iloc[:, 1]
             cov_1 *= float(gl_1/genome_size)
             cov_2 *= float(gl_2/genome_size)
-            cov_1 = float(size_1/genome_size)
-            cov_2 = float(size_2/genome_size)
+            #cov_1 = float(size_1/genome_size)
+            #cov_2 = float(size_2/genome_size)
 
         if True:
             num_unique_kmers = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))

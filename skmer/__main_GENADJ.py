@@ -139,7 +139,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         num_terms= min(5,len(ref_hist))
         genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
         
-        if (False):
+        if (True):
             adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
         else:
             adjusted_hist = ref_hist.iloc[:, 1]
