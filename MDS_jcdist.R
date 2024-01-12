@@ -26,6 +26,7 @@ dist_jc <- read_tsv("../data/ref-dist-jc.txt", col_names = FALSE) %>%
 pairwise_distances <- dist_jc[-1, -1]
 ibs_mat <- as.data.frame(as.matrix(pairwise_distances))
 ibs_mat[is.na(ibs_mat) | ibs_mat == "nan"] <- 0
+ibs_mat[is.na(ibs_mat) | ibs_mat == "-nan"] <- 0
 
 ### Creating annotation file
 sample_ids <- dist_jc[-1, 1]
