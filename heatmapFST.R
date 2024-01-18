@@ -11,7 +11,7 @@ pacman::p_load(pheatmap, tidyverse, reshape2)
 
 
 # Loads Fst table ~
-data <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/with_fam_nas/wc_fst_mat_fam_nas.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
+data <- read.table("/Users/sjr729/Desktop/GitHub/Skmer-2/ed_test_wcfst.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE,)
 
 
 #Remove the redundant first column, but the scalability of this need to be checked 
@@ -35,7 +35,7 @@ n
 
 # Creates Fst-Fst matrix ~
 Fst_Fst <- matrix(0, nrow = n, ncol = n, dimnames = list(Fst_Pops, Fst_Pops))
-for (i in 1:nrow(Fst)) {
+for (i in 1:nrow(melted_Fst)) {
   Fst_Fst[melted_Fst[i, "Pop1"], melted_Fst[i, "Pop2"]] = melted_Fst[i, "Weighted"]
   Fst_Fst[melted_Fst[i, "Pop2"], melted_Fst[i, "Pop1"]] = melted_Fst[i, "Weighted"]}
 
