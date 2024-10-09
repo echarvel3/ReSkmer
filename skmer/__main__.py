@@ -3,7 +3,7 @@
 
 
 import numpy as np
-from scipy.optimize import newton, brenth
+from scipy.optimize import newton, brenth, minimize
 import argparse
 import os
 import shutil
@@ -15,6 +15,11 @@ import subprocess
 from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
 import io
+
+from sympy.solvers import solve
+from sympy import Symbol
+import math
+from  numpy import random
 # import glob
 
 __version__ = 'skmer 4.3.0'
@@ -32,15 +37,101 @@ default_error_rate = 0.01
 def parse_reference(reference_path, k, nth, library):
     ext=reference_path.split('.')[-1]
     ref_hist=None
+    
+    print("unadjusted:", ref_hist)
     if (ext == 'hist'):
         ref_hist = pd.read_csv(reference_path, sep=' ', header=None)
-    elif (ext == 'txt'):       
-        ref_hist = pd.read_csv(reference_path, sep='\t', header=0).drop(labels='sample', axis=1).transpose().iloc[:,0] 
+
+    elif (ext == 'txt'):    
+        ref_hist = pd.read_csv(reference_path, sep='\t', header=0)
+
+        ref_names = pd.Series([x.rsplit('.', 1)[0] for x in ref_hist.pop('sample')])
+        ref_lengths = ref_hist.pop('genome_length')
+        ref_hist = ref_hist.transpose()
+        ref_hist = ref_hist.rename(columns=ref_names)
+
+        ref_lengths = pd.concat([ref_lengths], axis=1).transpose().rename(columns=ref_names)
+
         ref_hist = ref_hist.reset_index(drop=True)
-        ref_hist = pd.concat([pd.Series([1,2,3,4,5]), ref_hist], axis=1)         
+        ref_hist = pd.concat([pd.Series([float(x) for x in range(1,ref_hist.shape[0]+1)]), ref_hist], axis=1)
+        print("unadjusted:", ref_hist)
+        for sample in ref_names:
+            genome_length = ref_lengths[sample].loc['genome_length']
+            ksum = np.dot(ref_hist.iloc[:, 0], ref_hist[sample])
+            
+            # update_r1 = True
+            # if update_r1:
+            #new_Rs = ((genome_length) / (ksum)) * ref_hist[sample]
+            #ref_hist[sample] = [int(x) for x in new_Rs]
+            # else:
+            #     if ksum != ref_hist[sample].iloc[0]:
+            new_Rs = ((genome_length - ref_hist[sample].iloc[0]) / (ksum - ref_hist[sample].iloc[0])) * ref_hist[sample].iloc[1:]
+            #ref_hist[sample].iloc[1:] = [int(x) for x in new_Rs]
+            ref_hist.loc[1:,sample] = [int(x) for x in new_Rs]
+
+
+        stop_count = 0
+        # print(ref_hist.shape[0])
+
+        # print(ref_hist)
+        pseudo_count = pow(10, -10)
+        #print(pseudo_count)
+
+        for sample in ref_names:
+            try:
+                slope = (math.log(ref_hist.loc[10, sample] + pseudo_count) - math.log(ref_hist.loc[len(ref_hist)-3, sample] + pseudo_count)/2 - math.log(ref_hist.loc[len(ref_hist)-2, sample] + pseudo_count)/2) / 40
+                #print(sample, slope)
+                stop_count = 0
+                for i in random.randint(10,ref_hist.shape[0]-2, 5000):
+                    #print(i)
+                    # IF the difference between one spectra and the next is LARGER THAN THE SLOPE:
+                    if abs(math.log(ref_hist.loc[i, sample] + pseudo_count) - math.log(ref_hist.loc[i+1, sample] + pseudo_count)) > slope:
+
+                        if ref_hist.iloc[i,1] < ref_hist.iloc[i+1, 1]:
+                            y = (i*ref_hist.loc[i, sample]  + (3*i+1) * ref_hist.loc[i+1, sample]            ) / (2 * (2*i+1))
+                        else:
+                            y = ( (i+2) * ref_hist.loc[i+1, sample]  + 3 *(i) * ref_hist.loc[i, sample] ) / (2 * (2*i+1))
+                        
+                        x = (ref_hist.loc[i, sample] *i + ref_hist.loc[i+1, sample] *(i+1) - y * (i+1)) / i
+
+                        ref_hist.loc[i, sample] = int(x)
+                        ref_hist.loc[i+1, sample]  = int(y)
+                        #print(x, y)
+                        stop_count = 0
+                    else:
+                        #print(".", end = " ")
+                        stop_count = stop_count + 1
+                    
+                    if (stop_count == 50):
+                        #print('end')
+                        break
+            except:
+                pass
+
+       # ref_hist.pop(0)
+
+        # OLD RESPECT INPUT PROCESSING (SINGLE INPUT) #   
+        # ref_hist = pd.read_csv(reference_path, sep='\t', header=0).drop(labels='sample', axis=1).transpose().iloc[:,0]
+        # ref_hist = ref_hist.reset_index(drop=True)
+        # ref_hist = pd.concat([pd.Series([float(x) for x in range(1,ref_hist.shape[0]+1)]), ref_hist], axis=1)
+
+        # data_path = reference_path.split("/")
+        # data_file = "/".join(data_path[:-1] + [data_path[-1].replace("spectra", "parameters")])
+        # genome_length = int(pd.read_csv(data_file, sep='\t', header=0)["genome_length"].iloc[0])
+
+        # ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
+        # update_r1 = False
+        # if update_r1:
+        #     new_Rs = ((genome_length - ref_hist.iloc[0,1]) / (ksum - ref_hist.iloc[0,1])) * ref_hist.iloc[1:,1]
+        #     ref_hist.iloc[1:,1] = [int(x) for x in new_Rs]
+        # else:
+        #     new_Rs = ((genome_length) / (ksum )) * ref_hist.iloc[0:,1]
+        #     ref_hist.iloc[0:,1] = [int(x) for x in new_Rs]
+
     elif (ext[0] == 'f'):
         sample = os.path.basename(reference_path).rsplit('.f', 1)[0]
         mercnt = os.path.join(library, sample + ".jf")
+        print(mercnt, reference_path)
         call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, reference_path], stderr=open(os.devnull, 'w'))
         histo_stderr = io.StringIO(check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True))
         os.remove(mercnt)
@@ -55,57 +146,77 @@ def get_hist_data(lib, sample):
     usum = sum(ref_hist.iloc[:, 1])
     return ref_hist, ksum, usum
 
-def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
+def estimate_intersection(ref_hist, sliced_ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
     '''calculates exp|AuB|?'''
-    sliced_ref_hist = ref_hist[:num_terms].copy()
-    sliced_ref_hist[num_terms-1] += ref_hist[num_terms:].sum()
 
     nonerr_term1 = 1 - np.power(1-eta1, 1 + np.arange(num_terms))
     nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), 1 + np.arange(num_terms))
-    nonerr_ins = np.dot(sliced_ref_hist, nonerr_term1*nonerr_term2)
+    nonerr_ins = np.dot(sliced_ref_hist.iloc[:,1], nonerr_term1*nonerr_term2)
+    
+    print(ref_hist.iloc[:,0])
 
     if eps1:
-        n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(1 + np.arange(ref_hist.shape[0]))
+        n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(ref_hist.iloc[:,0])
     else:
         n1 = 0
     if eps2:
-        n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*(1 + np.arange(ref_hist.shape[0]))
-        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*(1 + np.arange(ref_hist.shape[0]))
+        n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*ref_hist.iloc[:,0]
+        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-math.pow(math.e, -lam2 * math.pow(1-eps2, k)))*ref_hist.iloc[:,0]
+        print("new n22:", n22, "type:", type(n22), "end")
+        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*ref_hist.iloc[:,0]
+        print("old n22:", n22, "type:", type(n22), "end")
     else:
         n21 = 0
         n22 = 0
     term1 = 1 - np.exp(-1*n1)
     term2 = 1 - np.exp(-1*(n21 + n22))
-    extra_ins = 3*k*np.dot(ref_hist, term1*term2)
+    extra_ins = 3*k*np.dot(ref_hist.iloc[:,1], term1*term2)
+    if d==0:
+        print("Intersection breakup: " ,extra_ins,nonerr_ins, term1*term2 * ref_hist.iloc[:,1])
 
     return np.dot([1, 1], [nonerr_ins, extra_ins])
 
-def intersection_fnctn(ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms, log_funct = False):
+def intersection_fnctn(ref_hist, sliced_ref_hist, msh_int, cov_1, cov_2, eps_1, eps_2, read_len_1, read_len_2, k, num_terms, log_funct = False, is_lambda=False):
     '''takes GENOME ASSEMBLY as input? returns function of est exp|AuB| - obs|AuB|'''
-
-    lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1 if read_len_1 != "NA" else None 
-    lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2 if read_len_2 != "NA" else None
+    
+   #use this when coverage is already lambda
+    if not is_lambda:
+        lam1 = cov_1 * (read_len_1 - k + 1) / read_len_1 if read_len_1 != "NA" else None 
+        lam2 = cov_2 * (read_len_2 - k + 1) / read_len_2 if read_len_2 != "NA" else None
+        print(lam1, lam2)
+    else:
+        lam1 = cov_1
+        lam2 = cov_2
 
     eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k)) if eps_1 else 1
     eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k)) if eps_2 else 1
+    print("ETA: ",eta1,eta2)
     
     if log_funct:
-        for x in range(0,20):
-            z=x/100.0
-            print(z,estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), msh_int) 
+        for x in range(0,0):
+            z=x/5000.0
+            print(x)
+            print(z,estimate_intersection(ref_hist, sliced_ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), msh_int) 
 
-    zde = estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k, num_terms)
+    zde = estimate_intersection(ref_hist,  sliced_ref_hist,lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k, num_terms)
+    print("intersection at zero", zde)
     if (((zde - msh_int) / zde) < 0.01):
         #if (((zde - msh_int) / zde) > -0.01):
+        print("CORNER CASE", zde, msh_int)
         msh_int = zde
         
     def g(est_d):
-       return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - msh_int
+       return estimate_intersection(ref_hist, sliced_ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k, num_terms) - msh_int
 
     return g 
 
 
-def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_hist):
+def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_hist_df):
+    if ref_hist_df.shape[1] > 2:
+        ref_hist = ref_hist_df[[0, sample_1]]
+    elif ref_hist_df.shape[1] == 2:
+        ref_hist = ref_hist_df
+
     try:
         if sample_1 == sample_2 and lib_1 == lib_2:
             return sample_1, sample_2, 0.0
@@ -123,6 +234,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         cov_2 = ce[sample_2]
         eps_1 = ee[sample_1] if ee[sample_1] != "NA" else None
         eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
+        #eps_1 = eps_2 = 0.005
         l_1 = rl[sample_1]
         l_2 = rl[sample_2]
 
@@ -132,6 +244,7 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
         msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
         dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+
         
         j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
         i = j * (usize_1 + usize_2) / (1.0 + j)
@@ -140,36 +253,44 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
         genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
         
         if (False):
-            adjusted_hist = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
+            adjusted_hist = ref_hist.copy() 
+            adjusted_hist.iloc[:,1] = ref_hist.iloc[:, 1] * float(gl_2+gl_1) / float(genome_size) / 2.0
         else:
-            adjusted_hist = ref_hist.iloc[:, 1]
-            cov_1 *= float(gl_1/genome_size)
-            cov_2 *= float(gl_2/genome_size)
+            adjusted_hist = ref_hist
+            #cov_1 *= float(gl_1/genome_size)
+            #cov_2 *= float(gl_2/genome_size)
             cov_1 = float(size_1/genome_size)
             cov_2 = float(size_2/genome_size)
+            #cov_1 = cov_2 = 1.6
 
         if True:
             num_unique_kmers = sum((1)*ref_hist.iloc[i,1] for i in range(0,len(ref_hist)))
-            alen = sum((1)*adjusted_hist[i] for i in range(0,len(adjusted_hist)))
 
             print(sample_1, sample_2)
-            print(adjusted_hist, ref_hist)
-            print("jaccard:", j, alen, num_unique_kmers, 
+            print(adjusted_hist)
+            sliced_adjusted_hist = adjusted_hist[:num_terms].copy()
+            #sliced_adjusted_hist.iloc[num_terms-1,1] += (np.dot(adjusted_hist.iloc[num_terms:,1],adjusted_hist.iloc[num_terms:,0]))/(num_terms)
+            sliced_adjusted_hist.iloc[num_terms-1,1] += np.sum(adjusted_hist.iloc[num_terms:,1])
+            sliced_ln = np.dot(sliced_adjusted_hist.iloc[:,1],sliced_adjusted_hist.iloc[:,0])
+            print(genome_size)
+            print("jaccard:", j,  num_unique_kmers, 
                   "reference genome size:", genome_size, 
+                  "sliced length:", sliced_ln,
+                  "sliced adj hist:", sliced_adjusted_hist,
                   "genome size:", gl_1, gl_2, 
                   "kmer set sizes:", usize_1, usize_2, 
                   "intersection:", i, 
                   "coverages:", cov_1, cov_2, 
                   "epsilon:", eps_1,  eps_2, 
                   "read lengths:", l_1, l_2, 
+                  "num terms:", num_terms,
                   "kmer size:", k, 
                   "num terms:", num_terms, "\n")
-
-        intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True)
-
-        d = brenth(intersection_fnctn(adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms), 0, 1)
+        
+        intersection_fnctn(adjusted_hist, sliced_adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True, True)
+        d = brenth(intersection_fnctn(adjusted_hist,  sliced_adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, False, True), 0, 1)
         print(sample_1, sample_2, d , "\n")
-        print("----------------------------------")
+        print("------------------------------------------------------------------")
         if tran:
             if d < 0.75:
                 d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
@@ -179,6 +300,67 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
     except Exception as e:
         print(e)
         return sample_1, sample_2, None
+    
+def estimate_cov_from_r(ref_hist_df, ksum, count, k, sample, l, e, range_start=None, range_end=None, maxj=None):
+        # Check if reference is one sample or mutliple
+        if ref_hist_df.shape[1] > 2:
+            ref_hist = ref_hist_df[[0, sample.replace("8x","4x")]]
+        elif ref_hist_df.shape[1] == 2:
+            ref_hist = ref_hist_df
+
+        genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
+        lam = float(ksum/genome_size)
+        hl = 2
+        maxj = min(ref_hist.shape[0], 50)
+        erscore = {}
+        for hl in range(2,10*(int(lam)+1)):
+                if range_start:
+                    hrange=range(range_start, range_end)
+                else:
+                    hrange=range(max(int(lam),2),min(max((int(lam)+hl),5),len(count)))
+                def estim_oh(xi, hr = hrange, l2= False):
+                    #print("I am here, ",xi)
+                    errs = [(count[h] - np.dot( 
+                              ref_hist.iloc[0:maxj,1],
+                              np.array( [np.exp(-j*xi) * np.power(j*xi,h) / math.factorial(h) for j in range(1, maxj+1)])
+                          ))/math.sqrt(count[h]) for h in hr]
+                    if l2:
+                        err = sum((e ** 2 for e in errs)) /  len(errs)
+                    else:
+                        err = sum( errs )
+                    #print("returning", err)
+                    return(err)
+                def xi_function():
+                    fxn = (lambda xi : estim_oh(xi,hrange, True) )
+                    return(fxn)
+                #for x in range(10, int(lam*110)):
+                #    print(x/100.0, 1 - (x/100.0 / lam) ** (1.0 / k),  xi_function(ref_hist, h)(x/100.0))
+                try:
+                    xi = minimize(xi_function(), lam*((1-0.003)**k), bounds=[(lam*(1-0.03)**k,lam*((1-0.0001)**k))]) # Note 0.03 is maximum error allowed
+                    #print(xi)
+                    xi = xi.x[0]
+                    #print(xi)
+                    eps = 1 - (xi / lam) ** (1.0 / k)
+                    eps2 = 1 - (xi / (4.0/((1.0 * l / (l - k))))) ** (1.0 / k)
+                    eps3 = 1 - (xi / (8.0/((1.0 * l / (l - k))))) ** (1.0 / k)
+                    #estim_oh(xi,True)
+                    #print(xi)
+                    erscore[estim_oh(xi,hrange,True)] = (eps, hl)  
+                except ValueError:
+                    print(traceback.format_exc())
+                    eps = -1
+        #print([("%.3f" % k,erscore[k]) for k in sorted(erscore.keys())])
+        if erscore.keys():
+            eps = erscore[min(erscore.keys())][0]
+            hrange = range(hrange[0],erscore[min(erscore.keys())][1]+hrange[0])
+        else: 
+                eps = -1
+                hrange = None
+        #print("epsilon, lambda estimates, computed at h range: ", eps, lam, hrange)
+        cov = (1.0 * l / (l - k)) * lam
+        print( "%.4f" % eps,"%.3f" %  lam,"%.3f" %  cov, hrange, maxj, genome_size)
+        eps = eps if e is None else e
+        return (eps, lam)
 
 ############################################
 
@@ -227,8 +409,7 @@ def cov_temp_func(x, r, p, k, l):
     lam = x * (1.0 * (l - k)) / l
     return lam * (p ** 2) * np.exp(-lam * p) - 2 * r * (p * np.exp(-lam * p) + 1 - p)
 
-
-def estimate_cov(sequence, lib, k, e, nth):
+def estimate_cov(sequence, lib, k, e, nth, ref_hist=None):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     try:
@@ -238,14 +419,19 @@ def estimate_cov(sequence, lib, k, e, nth):
             raise
     info_file = os.path.join(sample_dir, sample + '.dat')
 
-    mercnt = os.path.join(sample_dir, sample + '.jf')
     histo_file = os.path.join(sample_dir, sample + '.hist')
-    call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
-         stderr=open(os.devnull, 'w'))
-    histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
-    with open(histo_file, mode='w') as f:
-        f.write(histo_stderr)
-    os.remove(mercnt)
+    if not os.path.exists(histo_file):
+        mercnt = os.path.join(sample_dir, sample + '.jf')
+        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
+             stderr=open(os.devnull, 'w'))
+        histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
+        with open(histo_file, mode='w') as f:
+            f.write(histo_stderr)
+        os.remove(mercnt)
+    else:
+        histo_stderr = open(histo_file).read()
+        #print(histo_stderr)
+        print("========================")
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
     if ml > seq_len_threshold:
@@ -272,8 +458,10 @@ def estimate_cov(sequence, lib, k, e, nth):
             f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
                     'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
         return sample, cov, g_len, eps, l
-    ind = min(count.index(max(count[2:])), len(count) - 2)
-    if e is not None:
+    ind = min(count.index(max(count[2:])), len(count) - 2)+1
+    print("index is : " + str(ind))
+    print(sequence)
+    if (e is not None) and (ref_hist is None):
         eps = e
         p0 = np.exp(-k * eps)
         if ind < 2:
@@ -289,9 +477,14 @@ def estimate_cov(sequence, lib, k, e, nth):
         r21 = 1.0 * count[2] / count[1]
         cov = newton(cov_temp_func, 0.05, args=(r21, p0, k, l))
     else:
-        gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
-        lam = (np.exp(-gam) * (gam ** ind) / np.math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
-        eps = 1 - (gam / lam) ** (1.0 / k)
+        if ref_hist is not None:
+            #CALLED HERE
+            (eps, lam) = estimate_cov_from_r(ref_hist, ksum, count, k, sample, l, e)
+            print("epsilon:", eps)
+        else:
+            gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
+            lam = (np.exp(-gam) * (gam ** ind) / np.math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
+            eps = 1 - (gam / lam) ** (1.0 / k)
         cov = (1.0 * l / (l - k)) * lam
     tot_seq = 1.0 * ksum * l / (l - k)
     g_len = int(tot_seq / cov)
@@ -446,6 +639,10 @@ def reference(args):
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
+    if samples_names:
+       print("Found these samples: ", samples_names)
+    else:
+        raise FileNotFoundError("no files with extensions %s found" % " ".join(formats))
 
     # Check if refs have duplicate entry
     if len(samples_names) != len(set(samples_names)):
@@ -474,8 +671,9 @@ def reference(args):
     # Computing coverage, genome length, error rate, and read length
     sys.stderr.write('[skmer] Estimating coverages using {0} processors...\n'.format(n_proc_cov))
     pool_cov = mp.Pool(n_pool)
-
-    results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
+    #GETTING REF_HIST
+    ref_hist= parse_reference(args.r, args.k, args.p, args.l) if args.r else None
+    results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.l, args.k, args.e, n_thread_cov,ref_hist))
                    for seq in sequences]
     
     for result in results_cov:
@@ -507,7 +705,6 @@ def reference(args):
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
     if args.r is not None:
-        ref_hist=parse_reference(args.r, args.k, args.p, args.l)
         results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
                                                                err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                     for s1 in samples_names for s2 in samples_names]
