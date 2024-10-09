@@ -78,35 +78,33 @@ def parse_reference(reference_path, k, nth, library):
         #print(pseudo_count)
 
         for sample in ref_names:
-            try:
-                slope = (math.log(ref_hist.loc[10, sample] + pseudo_count) - math.log(ref_hist.loc[len(ref_hist)-3, sample] + pseudo_count)/2 - math.log(ref_hist.loc[len(ref_hist)-2, sample] + pseudo_count)/2) / 40
-                #print(sample, slope)
-                stop_count = 0
-                for i in random.randint(10,ref_hist.shape[0]-2, 5000):
-                    #print(i)
-                    # IF the difference between one spectra and the next is LARGER THAN THE SLOPE:
-                    if abs(math.log(ref_hist.loc[i, sample] + pseudo_count) - math.log(ref_hist.loc[i+1, sample] + pseudo_count)) > slope:
+            
+            slope = (math.log(ref_hist.loc[10, sample] + pseudo_count) - math.log(ref_hist.loc[len(ref_hist)-3, sample] + pseudo_count)/2 - math.log(ref_hist.loc[len(ref_hist)-2, sample] + pseudo_count)/2) / 40
+            #print(sample, slope)
+            stop_count = 0
+            for i in random.randint(10,ref_hist.shape[0]-2, 5000):
+                #print(i)
+                # IF the difference between one spectra and the next is LARGER THAN THE SLOPE:
+                if abs(math.log(ref_hist.loc[i, sample] + pseudo_count) - math.log(ref_hist.loc[i+1, sample] + pseudo_count)) > slope:
 
-                        if ref_hist.iloc[i,1] < ref_hist.iloc[i+1, 1]:
-                            y = (i*ref_hist.loc[i, sample]  + (3*i+1) * ref_hist.loc[i+1, sample]            ) / (2 * (2*i+1))
-                        else:
-                            y = ( (i+2) * ref_hist.loc[i+1, sample]  + 3 *(i) * ref_hist.loc[i, sample] ) / (2 * (2*i+1))
-                        
-                        x = (ref_hist.loc[i, sample] *i + ref_hist.loc[i+1, sample] *(i+1) - y * (i+1)) / i
-
-                        ref_hist.loc[i, sample] = int(x)
-                        ref_hist.loc[i+1, sample]  = int(y)
-                        #print(x, y)
-                        stop_count = 0
+                    if ref_hist.iloc[i,1] < ref_hist.iloc[i+1, 1]:
+                        y = (i*ref_hist.loc[i, sample]  + (3*i+1) * ref_hist.loc[i+1, sample]            ) / (2 * (2*i+1))
                     else:
-                        #print(".", end = " ")
-                        stop_count = stop_count + 1
+                        y = ( (i+2) * ref_hist.loc[i+1, sample]  + 3 *(i) * ref_hist.loc[i, sample] ) / (2 * (2*i+1))
                     
-                    if (stop_count == 50):
-                        #print('end')
-                        break
-            except:
-                pass
+                    x = (ref_hist.loc[i, sample] *i + ref_hist.loc[i+1, sample] *(i+1) - y * (i+1)) / i
+
+                    ref_hist.loc[i, sample] = int(x)
+                    ref_hist.loc[i+1, sample]  = int(y)
+                    #print(x, y)
+                    stop_count = 0
+                else:
+                    #print(".", end = " ")
+                    stop_count = stop_count + 1
+                
+                if (stop_count == 50):
+                    #print('end')
+                    break
 
        # ref_hist.pop(0)
 
@@ -149,30 +147,33 @@ def get_hist_data(lib, sample):
 def estimate_intersection(ref_hist, sliced_ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k, num_terms):
     '''calculates exp|AuB|?'''
 
-    nonerr_term1 = 1 - np.power(1-eta1, 1 + np.arange(num_terms))
-    nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), 1 + np.arange(num_terms))
-    nonerr_ins = np.dot(sliced_ref_hist.iloc[:,1], nonerr_term1*nonerr_term2)
+    nonerr_term1 = 1 - np.power(1-eta1, ref_hist.iloc[:,0])
+    nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), ref_hist.iloc[:,0])
+    nonerr_ins = np.dot(ref_hist.iloc[:,1], nonerr_term1*nonerr_term2)
     
-    print(ref_hist.iloc[:,0])
+    print("I_0:\n", nonerr_ins)
 
+    b = k*(1-math.exp(-1/(3*k)))
+    print("b:", b)
     if eps1:
-        n1 = (1/(3*k))*lam1*k*eps1*((1-eps1)**(k-1))*(ref_hist.iloc[:,0])
+        n1 = 1-np.exp(-1*ref_hist.iloc[:,0]*b*lam1*eps1*np.power(1-eps1,k-1))
+        print("n1:\n", n1)
     else:
         n1 = 0
     if eps2:
-        n21 = (1/(3*k))*(((1-d)**k)*lam2*k*eps2*((1-eps2)**(k-1)))*ref_hist.iloc[:,0]
-        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-math.pow(math.e, -lam2 * math.pow(1-eps2, k)))*ref_hist.iloc[:,0]
-        print("new n22:", n22, "type:", type(n22), "end")
-        n22 = (1/(3*k))*(k*d*(1-d)**(k-1))*(1-((1-((1-eps2)**k))**lam2))*ref_hist.iloc[:,0]
-        print("old n22:", n22, "type:", type(n22), "end")
+        n21 = np.power(1-d,k)*np.exp(-1*b*lam2*eps2*np.power(1-eps2, k-1))
+        n22 = d*np.power(1-d,k-1)*b*(np.exp(-1*lam2*np.power(1-eps2, k))-1)
+        n23 = 1 - np.power(1-d,k)
     else:
         n21 = 0
         n22 = 0
-    term1 = 1 - np.exp(-1*n1)
-    term2 = 1 - np.exp(-1*(n21 + n22))
+
+    term1 = n1
+    print("term1:\n", term1)
+    term2 = 1-np.power(n21 + n22 + n23, ref_hist.iloc[:,0])
+    print("term2:\n", term2)
     extra_ins = 3*k*np.dot(ref_hist.iloc[:,1], term1*term2)
-    if d==0:
-        print("Intersection breakup: " ,extra_ins,nonerr_ins, term1*term2 * ref_hist.iloc[:,1])
+    print("I_1:\n", extra_ins)
 
     return np.dot([1, 1], [nonerr_ins, extra_ins])
 
@@ -190,19 +191,16 @@ def intersection_fnctn(ref_hist, sliced_ref_hist, msh_int, cov_1, cov_2, eps_1, 
 
     eta1 = 1 - np.exp(-lam1 * ((1-eps_1)**k)) if eps_1 else 1
     eta2 = 1 - np.exp(-lam2 * ((1-eps_2)**k)) if eps_2 else 1
-    print("ETA: ",eta1,eta2)
     
     if log_funct:
-        for x in range(0,0):
-            z=x/5000.0
+        for x in range(0,20):
+            z=x/100.0
             print(x)
             print(z,estimate_intersection(ref_hist, sliced_ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, z, k, num_terms), msh_int) 
 
     zde = estimate_intersection(ref_hist,  sliced_ref_hist,lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k, num_terms)
-    print("intersection at zero", zde)
     if (((zde - msh_int) / zde) < 0.01):
         #if (((zde - msh_int) / zde) > -0.01):
-        print("CORNER CASE", zde, msh_int)
         msh_int = zde
         
     def g(est_d):
@@ -283,14 +281,13 @@ def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres
                   "coverages:", cov_1, cov_2, 
                   "epsilon:", eps_1,  eps_2, 
                   "read lengths:", l_1, l_2, 
-                  "num terms:", num_terms,
                   "kmer size:", k, 
                   "num terms:", num_terms, "\n")
         
         intersection_fnctn(adjusted_hist, sliced_adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, True, True)
         d = brenth(intersection_fnctn(adjusted_hist,  sliced_adjusted_hist, i, cov_1, cov_2, eps_1, eps_2, l_1, l_2, k, num_terms, False, True), 0, 1)
         print(sample_1, sample_2, d , "\n")
-        print("------------------------------------------------------------------")
+        print("----------------------------------")
         if tran:
             if d < 0.75:
                 d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
