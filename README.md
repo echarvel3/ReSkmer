@@ -22,7 +22,7 @@ Installation
 ``` 
 4. Clone the github repository by running (or you can download the repo)
 ```
-    git clone https://github.com/echarvel-3/Skmer-2.git
+    git clone https://github.com/echarvel3/Skmer-2.git
 ```
 Using Skmer
 ------------
