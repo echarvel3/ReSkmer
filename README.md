@@ -33,19 +33,9 @@ Installation
 
 Using Skmer
 ------------
-Skmer has five sub-commands:
-
 ### reference
-Gets the path to a directory of FASTQ/FASTA files (one uncompressed *.fastq/.fq/.fa/.fna/.fasta* file per each sample) and creates a reference library containing the estimates of sequencing parameters as well as the Mash sketch for each sample. If you have paired-end sequencing reads, we suggest using tools such as [BBMerge][10] to merge overlapping read pairs. If the input is an assembled sequence (determined by the length of sequences) the correction for low coverage and sequencing error is not applied to that sample. All corrected pairwise genomic distances are then estimated and written to a file. For a test run, change the directory to `data` under your Skmer installation directory, and run
+usage:
 ```
-skmer reference ref_dir -p 4
-```
-The genome-skims and assemblies in `ref_dir` directory are processed (using 4 cores in parallel), and a reference `library` is created in the working directory. You can specify a custom name (and so its path) for your library using `-l` option
-```
-skmer reference ref_dir -l custom_library_name
-```
-Default k-mer size is set to `31` which is the maximum length allowed by Mash, and can be changed using `-k` option. We do not recommend using k-mers smaller than ~`21`, as k-mers without any shared evolutionary history start to seem similar just out of random chance. The sketch size can also be changed using `-s` option from its default value `10000000`. Decreasing the sketch size will reduce the size of library on disk, but also compromises the accuracy of distance estimation. The corrected pairwise distances are estimated and written to the file `ref-dist-mat.txt` in the working directory by default. The output prefix can be changed using `-o` option
-```
-skmer reference ref_dir -r ${path-to-reference}-o output_prefix
+python ./skmer/__main__.py reference ref_dir -r ${path-to-reference}-o output_prefix
 ```
 The reference in question can be a genome assembly, a jellyfish .hist file that comes from a genome assembly, or a RESPECT estimate of a repeat spectrum with an estimate of genome size concatenated as the last row.
