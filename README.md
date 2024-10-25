@@ -17,13 +17,8 @@ Installation
 3. Run the following command to install Skmer (and all dependencies) 
 ```
     conda install skmer
-```
-
-**Alternatively, and for all other OS and architectures**, you can download the github repository and install Skmer using the setup script. 
-1. You need to have python 2.7 or later installed
-2. Install [Jellyfish][2] (v2.2.6 or later), [Mash][3] (v2.3 or later), and [seqtk][5] (v1.3), and add the path to
- their binary to the system path (so you can, e.g., run `jellyfish --version`, `mash --version`, and `seqtk` successfully in the terminal). 
-3. Clone the github repository by running (or you can download the repo)
+``` 
+4. Clone the github repository by running (or you can download the repo)
 ```
     git clone https://github.com/echarvel-3/Skmer-2.git
 ```
