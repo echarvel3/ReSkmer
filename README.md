@@ -3,7 +3,9 @@
 
 # Skmer 2
 ## !! This GitHub is still under construction, please report any bugs, or contact edcharvel@ucsd.edu for any questions!!
+
 For the original Skmer, please visit https://github.com/shahab-sarmashgh/Skmer-2.git
+
 Installation
 ------------
 **On 64-bit Linux and Mac OSX**, you can install Skmer from bioconda channel using conda package manager. 
