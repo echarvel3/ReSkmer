@@ -1222,10 +1222,14 @@ def query(args):
     # Number of pools for multi-processing
     n_pool_dist = min(args.p, len(refs))
 
+    # Processing Reference Histogram
+    ref_hist = parse_reference(args.r, kl, args.p, args.library) if args.r else None
+
     # Computing the coverage, genome length, error rate, and read length of query sample
     sys.stderr.write('[skmer] Estimating the coverage using {0} processors...\n'.format(args.p))
-    (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
-                                                                             args.p)
+    #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
+    #                                                                         args.p)
+    (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e, args.p, ref_hist)
     cov_est[sample] = coverage
     len_est[sample] = genome_length
     err_est[sample] = error_rate
@@ -1233,14 +1237,23 @@ def query(args):
 
     # Sketching the query genome-skim
     sys.stderr.write('[skmer] Sketching the genome-skim...\n')
-    sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed)
+    if args.r is not None:
+        sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, True)
+    else:
+        sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, False)
 
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    results_dist = [pool_dist.apply_async(estimate_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
+    if args.r is not None:
+        results_dist = [pool_dist.apply_async(estimate_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
+                    for ref in refs]
+    else:
+        results_dist = [pool_dist.apply_async(estimate_dist2, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t))
                     for ref in refs]
+        
     for result in results_dist:
         dist_output = result.get(9999999)
         result_s[dist_output[1]] = dist_output[2]
