@@ -1394,6 +1394,7 @@ def main():
     parser_qry.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
+    parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_qry.set_defaults(func=query)
 
     # fst command subparser
