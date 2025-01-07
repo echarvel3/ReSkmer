@@ -4,7 +4,7 @@
 # Skmer 2
 ## !! This GitHub is still under construction, please report any bugs, or contact edcharvel@ucsd.edu for any questions!!
 
-For the original Skmer, please visit https://github.com/shahab-sarmashgh/Skmer-2.git
+For the original Skmer, please visit https://github.com/shahab-sarmashgh/Skmer.git
 
 Installation
 ------------
