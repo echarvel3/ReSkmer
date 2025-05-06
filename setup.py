@@ -1,12 +1,12 @@
 from setuptools import setup
 
 setup(name='skmer',
-      version='3.1.0',
+      version='3.4.0',
       description='Assembly-free and alignment-free tool for estimating genomic distances between genome-skims',
       author='Shahab Sarmashghi',
       author_email='ssarmash@ucsd.edu',
       license='BSD-3-Clause',
-      url='https://github.com/shahab-sarmashghi/Skmer',
+      url='https://github.com/echarvel3/ReSkmer',
       packages=['skmer'],
       package_dir={'skmer': 'skmer'},
       install_requires=['numpy>=1.15.1', 'scipy>=1.1.0', 'pandas>=0.23.4'],
