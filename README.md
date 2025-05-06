@@ -13,30 +13,55 @@ Skmer is a command-line tool implemented in python. It runs [Jellyfish][2] and [
 
 Installation
 ------------
-**On 64-bit Linux and Mac OSX**, you can install Skmer from bioconda channel using conda package manager. 
-1. Install [Miniconda][4] (you can skip this if you already have either of Miniconda or Anaconda installed). 
-2. Add the bioconda channel by running the following commands in your terminal (order matters):
-```
-    conda config --add channels defaults
-    conda config --add channels bioconda
-    conda config --add channels conda-forge
-```
-3. Run the following command to install Skmer (and all dependencies) 
-```
-    conda install skmer
-```
-
-**Alternatively, and for all other OS and architectures**, you can download the github repository and install Skmer using the setup script. 
+You can download the github repository and install Skmer using the setup script. 
 1. You need to have python 2.7 or later installed
 2. Install [Jellyfish][2] (v2.2.6 or later), [Mash][3] (v2.3 or later), and [seqtk][5] (v1.3), and add the path to
  their binary to the system path (so you can, e.g., run `jellyfish --version`, `mash --version`, and `seqtk` successfully in the terminal). 
 3. Clone the github repository by running (or you can download the repo)
 ```
-    git clone https://github.com/shahab-sarmashghi/Skmer.git
+    git clone https://github.com/echarvel3/ReSkmer.git
 ```
 4. Change to the Skmer directory and run
 ```
     python setup.py install
+```
+ReSkmer: Repeat-Aware Distances
+------------
+ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to calculate repeat-aware distances for more accurate distances.
+
+ReSkmer requires a canonical repeat spectrum as an additional input, so that it can model the impact of repeats on the intersection of _k_-mer sets. This repeat-spectrum must be a tab-separated *.hist* file with the first column being the  _k_-mer multiplicity and the second being _k_-mer count, e.g.
+```
+1 53429692
+2 4329784
+3 1571485
+4 889494
+5 525121
+...
+```
+
+Although ReSkmer computes a repeat-spectrum from an assembly natively using Jellyfish, you can also compute it independently with the following commands _(useful for running ReSkmer multiple times)_:
+```
+jellyfish count -m 31 -s 100M -t 4 -C -o assembly_counts.jf /path/to/assembly.fna
+jellyfish histo -h 1000000  assembly_counts.jf > assembly_counts.hist
+        
+```
+Alternatively, ReSkmer can also be run reference-free by using Respect to obtain a per-sample estimate of repeat spectra. To use this method, input a tab-separated *.txt* file with the first column mapping to each sample, the middle columns containing the estimated repeat spectrum, and finally Respect's estimate of genome length.
+```
+sample           r1         r2        r3       r49   r50    genome_length
+sample_1.hist    86843291   3173580   680110   751   2638   102390833
+sample_2.hist    76305926   4584566   1020105  29    7461   101286985
+sample_3.hist    53196970   6676210   1534198  79    14582  98489237
+sample_4.hist    75989679   5017107   1020197  1361  3429   102260515
+sample_5.hist    93732638   2186924   404983   584   349    103321793
+        
+```
+To use ReSkmer simply add a `-r` flag to any of the commands described in the following sections. Here are some examples:
+```
+skmer reference ref_dir -l custom_library_name -r /path/to/respect_spectra.txt -p4
+
+skmer distance library -t -o jc-dist-mat -r /path/to/assembly_counts.hist
+
+skmer subsample ref_dir -r /path/to/assembly.fna
 ```
 
 Using Skmer
