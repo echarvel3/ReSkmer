@@ -27,7 +27,7 @@ You can download the github repository and install Skmer using the setup script.
 ```
 ReSkmer: Repeat-Aware Distances
 ------------
-ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to calculate repeat-aware distances for more accurate distances.
+ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to obtain for more accurate distances.
 
 ReSkmer requires a canonical repeat spectrum as an additional input, so that it can model the impact of repeats on the intersection of _k_-mer sets. This repeat-spectrum must be a tab-separated *.hist* file with the first column being the  _k_-mer multiplicity and the second being _k_-mer count, e.g.
 ```
