@@ -21,7 +21,7 @@ jellyfish count -m 31 -s 100M -t 4 -C -o assembly_counts.jf /path/to/assembly.fn
 jellyfish histo -h 1000000  assembly_counts.jf > assembly_counts.hist
         
 ```
-Alternatively, ReSkmer can also be run reference-free by using [Respect][11] to obtain a per-sample estimate of repeat spectra. To use this method, input a tab-separated *.txt* file with the first column mapping to each sample, the middle columns containing the estimated repeat spectrum, and finally Respect's estimate of genome length.
+Alternatively, ReSkmer can also be run reference-free by using [Respect][11] to obtain a per-sample estimate of repeat spectra. To use this method, input a **space-separated** *.txt* file with the first column mapping to each sample, the middle columns containing the estimated repeat spectrum, and finally Respect's estimate of genome length.
 ```
 sample           r1         r2        r3-48    r49   r50    genome_length
 sample_1.hist    86843291   3173580   ...      751   2638   102390833
