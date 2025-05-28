@@ -1,5 +1,3 @@
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/skmer/badges/version.svg)](https://anaconda.org/bioconda/skmer)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/skmer/badges/downloads.svg)](https://anaconda.org/bioconda/skmer)
 
 ReSkmer: Repeat-Aware Distances
 ------------
