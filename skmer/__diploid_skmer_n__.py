@@ -3,8 +3,7 @@
 
 
 import numpy as np
-from numpy import random
-from scipy.optimize import newton, brenth, minimize
+from scipy.optimize import newton, minimize
 import math
 import argparse
 import os
@@ -16,471 +15,21 @@ import pandas as pd
 import subprocess
 from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
-import io
 
-__version__ = 'skmer 5.0.0'
+__version__ = 'skmer 3.3.0'
 
 # Hard-coded param
-coverage_threshold = 5
-dip_coverage_threshold = 4
+coverage_threshold = 4
 error_rate_threshold = 0.03
 default_theta = 0.01
 seq_len_threshold = 2000
 default_error_rate = 0.01
 
-###########################################
-##                DipSKMER               ##
-###########################################
-def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
-    if cov == "NA":
-        return [1.0, 0]
-    p = np.exp(-k * eps)
-    copy_thres = int(1.0 * cov / (1.0* cov_thres)) + 1
-    lam = 1.0 * cov * (l - k) / l
-    if copy_thres == 1 or p == 1:
-        return [1 - np.exp(-lam * p), lam * (1 - p)]
-    else:
-        print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
-        # TODO: change 2 lam to to lam / (2-(1-theta)**k)
-        #s = [(2*lam / (2-(1-0.003)**31) * p) ** i / np.math.factorial(i) for i in range(copy_thres)]
-        #return [1 - np.exp(-2*(lam / (2-(1-0.003)**31)) * p) * sum(s), 0]
-        #NOTE: change 31 to k?
-        s = [(2*p*lam/(1+theta)) ** i / np.math.factorial(i) for i in range(copy_thres)]
-        return [1 - np.exp(-(2*p*lam/(1+theta))) * sum(s), 0]
-
-def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
-    if sample_1 == sample_2 and lib_1 == lib_2:
-        return sample_1, sample_2, 0.0
-    sample_dir_1 = os.path.join(lib_1, sample_1)
-    sample_dir_2 = os.path.join(lib_2, sample_2)
-    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
-    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
-    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
-    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
-    gl_1 = le[sample_1]
-    gl_2 = le[sample_2]
-    if gl_1 == "NA" or gl_2 == "NA":
-        gl_1 = 1
-        gl_2 = 1
-    cov_1 = ce[sample_1]
-    cov_2 = ce[sample_2]
-    eps_1 = ee[sample_1]
-    eps_2 = ee[sample_2]
-    l_1 = rl[sample_1]
-    l_2 = rl[sample_2]
-    theta_1 = theta[sample_1]
-    theta_2 = theta[sample_2]
-
-    #print("pars used:", eps_1,eps_2,cov_1,cov_2)
-    r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
-    r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
-    
-    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
-    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
-    
-    i = j * (usize_1 + usize_2) / (1.0 + j)
-    EI = i / gl_1
-    #print(usize_1, usize_2)
-    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
-    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
-    power = (6/11 * 1/k)
-    lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
-    lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
-    #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
-    #psi_2 = 2*lam_2/2*(1-np.power(1-eps_2, k))
-    psi_1 = r_1[1]
-    psi_2 = r_2[1]
-    eta1= r_1[0]
-    eta2= r_2[0]
-    #print("psi1", psi_1, "psi_2", psi_2, "j", j)
-    numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
-    #4*eta1*eta2*(eta1 + eta2 - 5) + j *((4*eta1-5)*(eta2**2) + 4*(eta1-5)*eta1*eta2+(22-5*eta1)*eta1 + 11*(2*eta2 + psi_1 + psi_2))
-    denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
-    #(r_2[0]**2)*(11*(r_1[0]**2)*(j+1) - (18*r_1[0]*(j+1)) + 6*j) + 6*(r_1[0]**2)*j - 6*(3*r_1[0]-4)*r_1[0]*r_2[0]*(j+1)
-    #print("eta1", r_1[0], "eta2", r_2[0], "int per pos",  EI, "int", i, "num", numerator, "denom", denominator, "pow", power)
-    d = 1 - np.power(numerator/denominator,power)
-    
-    if tran or math.isnan(d):
-        if d < 0.75:
-            d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
-        else:
-            d = 5.0
-    print(d)
-    return sample_1, sample_2, d
-
-
-def estimate_diploid_cov(sequence, lib, k, e, nth):
-    sample = os.path.basename(sequence).rsplit('.f', 1)[0]
-    sample_dir = os.path.join(lib, sample)
-    try:
-        os.makedirs(sample_dir)
-    except OSError as Error:
-        if Error.errno != errno.EEXIST:
-            raise
-    info_file = os.path.join(sample_dir, sample + '.dat')
-
-    (l, ml, tl, n_reads) = sequence_stat(sequence)
-    if ml > seq_len_threshold:
-        raise TypeError("Assemblies not appropriate for DipSkmer diploid equations.")
-        # cov = "NA"
-        # g_len = tl
-        # eps = 0
-        # l = "NA"
-        # with open(info_file, mode='w') as f:
-        #     f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-        #             'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
-        # return sample, cov, g_len, eps, l
-
-    histo_stderr = check_jellyfish_files(sample_dir, sample, sequence, k, nth)
-
-    count = [0]
-    ksum = 0
-    for item in histo_stderr.split('\n')[:-1]:
-        count.append(int(item.split()[1]))
-        ksum += int(item.split()[0]) * int(item.split()[1])
-    if len(count) < 3:
-        # too little coverage
-        sys.stderr.write('Coverage of {0} is too low, not able to estimate it; no correction applied\n'.format(sample))
-        cov = "NA"
-        g_len = "NA"
-        eps = "NA"
-        theta = "NA"
-        with open(info_file, mode='w') as f:
-            f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                    'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l) + 'theta\t{0}\n'.format(theta))
-        return sample, cov, g_len, eps, l, theta
-
-    ind = min(count.index(max(count[2:])), len(count) - 2)
-    if ind < 2:
-        sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
-                         'Using default error rate {0}\n'.format(default_error_rate))
-        eps = default_error_rate
-        p0 = np.exp(-k * eps)
-        r21 = 1.0 * count[2] / count[1]
-        cov = newton(cov_temp_func, 0.05, args=(r21, p0, k, l))
-        theta = default_theta
-    else:
-        r =  count[ind + 1] / count[ind]
-        rn =  count[ind + 2] / count[ind+1]
-        if 8 * (2 + ind) * rn > 9 * (1 + ind) * r:
-            sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
-                         'Using default theta but computing other values {0}\n'.format(default_theta))
-            theta = default_theta
-            Q = (1-theta)**k
-            xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**ind+np.exp(x)) * Q)/((1+ind)* (2* np.exp(x)+(2**ind-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
-        else:
-            xi = 1./4 * (3 * (1 + ind) * r - math.sqrt((1 + ind) * r) *math.sqrt(max(0, -8 * (2 + ind) * rn + 9 * (1 + ind) * r)))
-            theta = 1 - 2**(1/ k) * ((np.exp(xi) * (-r - ind* r + xi))/( 2**ind *r - 2 * np.exp(xi) * r + 2**ind * ind * r - 2* np.exp(xi) * ind* r - 2**(1 + ind) * xi + 2 * np.exp(xi)* xi))**(1/k) 
-            Q = (1-theta)**k
-
-        if e is not None:
-            eps = e
-            lam = xi / (1-eps)**k
-        else:
-           lam = count[1]/count[ind] * ( (2 *np.exp(-xi) + (2**ind * np.exp(-2*xi) - 2 * np.exp(-xi))* Q) * (xi**ind) )/(2 * math.factorial(ind) ) + (-1 + np.exp(xi)) * (np.exp(-xi) + np.exp(-2*xi) * Q) * xi
-           eps = 1-(xi/lam)**(1/k)
-        cov = (1.0 * l / (l - k)) * lam
-        #print("Error calc:",i, r, xi, lam, Q, theta, cov, eps)
-
-    tot_seq = 1.0 * ksum 
-    g_len = int(tot_seq / 2.0 / lam)
-    #print("ksum,",ksum,g_len,lam, l / (l - k))
-
-    if eps > error_rate_threshold or eps < 0:
-        cov = "NA"
-        g_len = "NA"
-        eps = "NA"
-        theta = "NA"
-        with open(info_file, mode='w') as f:
-            f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                    'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l) + 'theta\t{0}\n'.format(repr(theta)))
-        return sample, cov, g_len, eps, l, theta
-
-    with open(info_file, mode='w') as f:
-        f.write('coverage\t{0}\n'.format(repr(cov)) + 'genome_length\t{0}\n'.format(g_len) +
-                'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l) + 'theta\t{0}\n'.format(repr(theta)))
-    return sample, cov, g_len, eps, l, theta
-
-def check_jellyfish_files(sample_dir, sample, sequence, k, nth):
-    '''checks if jellyfish file already exists to avoid recomputing'''
-    mercnt = os.path.join(sample_dir, sample + '.jf')
-    histo_file = os.path.join(sample_dir, sample + '.hist')
-
-    if (not os.path.exists(histo_file)) or (os.path.getsize(histo_file) == 0):
-        mercnt = os.path.join(sample_dir, sample + '.jf')
-        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
-             stderr=open(os.devnull, 'w'))
-        histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
-        with open(histo_file, mode='w') as f:
-            f.write(histo_stderr)
-        os.remove(mercnt)
-    else:
-        histo_stderr = open(histo_file).read()
-    return(histo_stderr)
-
-############################################
-##                 ReSKMER                ##
-############################################
-
-def correct_hist(ref_hist, ref_names, ref_lengths):
-    #TODO: separate correct and smooth functions to increase readability
-    return()
-
-def parse_reference(reference_path, k, nth, library):
-    sys.stderr.write('[skmer] Parsing repeat spectrum with {0} processors...\n'.format(nth))
-    ext=reference_path.split('.')[-1]
-    ref_hist=None
-    
-    # Jellyfish spectrum processing...
-    if (ext == 'hist'):
-        ref_hist = pd.read_csv(reference_path, sep=' ', header=None)
-
-    # RESPECT spectrum processing...
-    elif (ext == 'txt'):
-
-        # reads respect tsv: gets sample names, genome lengths, and repeat spectrum
-        ref_hist = pd.read_csv(reference_path, sep='\t', header=0)
-        ref_names = pd.Series([x.rsplit('.', 1)[0] for x in ref_hist.pop('sample')])
-
-        ref_lengths = ref_hist.pop('genome_length')
-        ref_lengths = pd.concat([ref_lengths], axis=1).transpose().rename(columns=ref_names)
-
-        ref_hist = ref_hist.transpose()
-        ref_hist = ref_hist.rename(columns=ref_names)
-        ref_hist = ref_hist.reset_index(drop=True)
-        ref_hist = pd.concat([pd.Series([float(x) for x in range(1,ref_hist.shape[0]+1)]), ref_hist], axis=1)
-        
-        correct_hist(ref_hist, ref_names, ref_lengths)
-
-        for sample in ref_names:
-            genome_length = ref_lengths[sample].loc['genome_length']
-            ksum = np.dot(ref_hist.iloc[:, 0], ref_hist[sample])
-
-            if genome_length > ref_hist[sample].iloc[0]:
-                # upscales bins (2 to 50) by estimate of genome size
-                new_R_factor= 0 if (ksum - ref_hist[sample].iloc[0] < 0.00001) else (genome_length - ref_hist[sample].iloc[0]) / (ksum - ref_hist[sample].iloc[0])
-                new_Rs = new_R_factor * ref_hist[sample].iloc[1:]
-                ref_hist.loc[1:,sample] = [int(x) for x in new_Rs]
-            else:
-                # if bin one is already larger than the genome size, downscale all bins by genome size
-                new_R_factor=genome_length/ksum
-                new_Rs = new_R_factor * ref_hist[sample].iloc[0:]
-                ref_hist.loc[0:,sample] = [int(x) for x in new_Rs]     
-        
-        # begins spectrum smoothing procedure
-        stop_count = 0
-        pseudo_count = math.pow(10, -10)
-        for sample in ref_names: 
-            # target slope for smoothing
-            slope = (math.log(ref_hist.loc[10, sample] + pseudo_count) - math.log(ref_hist.loc[len(ref_hist)-3, sample] + pseudo_count)/2 - math.log(ref_hist.loc[len(ref_hist)-2, sample] + pseudo_count)/2) / 40
-
-            stop_count = 0
-            for i in random.randint(10,ref_hist.shape[0]-2, 5000):
-                # If the absolute difference between one spectra and the next is LARGER than the slope:
-                if abs(math.log(ref_hist.loc[i, sample] + pseudo_count) - math.log(ref_hist.loc[i+1, sample] + pseudo_count)) > slope:
-                    
-                    # if first bin is smaller than the next, then...
-                    if ref_hist.iloc[i,1] < ref_hist.iloc[i+1, 1]:
-                        y = (i*ref_hist.loc[i, sample]  + (3*i+1) * ref_hist.loc[i+1, sample]            ) / (2 * (2*i+1))
-                    # else, if first bin is greater than the next...
-                    else:
-                        y = ( (i+2) * ref_hist.loc[i+1, sample]  + 3 *(i) * ref_hist.loc[i, sample] ) / (2 * (2*i+1))
-
-                    x = (ref_hist.loc[i, sample] *i + ref_hist.loc[i+1, sample] *(i+1) - y * (i+1)) / i
-
-                    ref_hist.loc[i, sample] = int(x)
-                    ref_hist.loc[i+1, sample]  = int(y)
-                    stop_count = 0
-                else:
-                    stop_count = stop_count + 1
-                
-                # end smoothing for sample if many bin comparisons match target slope
-                if (stop_count == 50):
-                    break
-
-    # Turn input assembly into Jellyfish histogram reference...
-    elif (ext[0] == 'f'):
-        sample = os.path.basename(reference_path).rsplit('.f', 1)[0]
-        mercnt = os.path.join(library, sample + ".jf")
-        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, reference_path], stderr=open(os.devnull, 'w'))
-        histo_stderr = io.StringIO(check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True))
-        os.remove(mercnt)
-        ref_hist = pd.read_csv(histo_stderr, sep=' ', header=None)
-
-    return ref_hist
-
-def get_hist_data(lib, sample):
-    '''reads a skim's jellyfish kmer histograms...'''
-
-    sample_dir = os.path.join(lib, sample)
-    histo_file = os.path.join(sample_dir, sample + '.hist')
-    ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
-    # sum of all kmers in a histogram
-    ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
-    # count of all unique kmers
-    usum = sum(ref_hist.iloc[:, 1])
-    return ref_hist, ksum, usum
-
-def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k):
-    '''calculates expected size of intersection (exp|AuB|) given sequencing parameters... '''
-    lam1 = 1.0 if lam1 == "NA" else lam1
-    lam2 = 1.0 if lam2 == "NA" else lam2
-
-    nonerr_term1 = 1 - np.power(1-eta1, ref_hist.iloc[:,0])
-    nonerr_term2  = 1 - np.power((1-eta2*((1-d)**k)), ref_hist.iloc[:,0])
-    nonerr_ins = np.dot(ref_hist.iloc[:,1], nonerr_term1*nonerr_term2)
-
-    b = k*(1-math.exp(-1/(3*k)))
-
-    if eps1:
-        n1 = 1-np.exp(-1*ref_hist.iloc[:,0]*b*lam1*eps1*np.power(1-eps1,k-1))
-    else:
-        n1 = 0
-
-    if eps2:
-        n21 = np.power(1-d,k)*np.exp(-1*b*lam2*eps2*np.power(1-eps2, k-1))
-        n22 = d*np.power(1-d,k-1)*b*(np.exp(-1*lam2*np.power(1-eps2, k))-1)
-        n23 = 1 - np.power(1-d,k)
-    else:
-        n21 = 0
-        n22 = 0
-        n23 = 0
-
-    term1 = n1
-    term2 = 1-np.power(n21 + n22 + n23, ref_hist.iloc[:,0])
-    extra_ins = 3*k*np.dot(ref_hist.iloc[:,1], term1*term2)
-
-    return np.dot([1, 1], [nonerr_ins, extra_ins])
-
-def intersection_fnctn(ref_hist, msh_int, lam1, lam2, eps_1, eps_2, k):
-    '''returns FUNCTION of est exp|AuB| - obs|AuB|'''
-
-    eta1 = 1.0 - np.exp(-lam1 * ((1-eps_1)**k)) if (lam1 != "NA" and eps_1) else 1.0
-    eta2 = 1.0 - np.exp(-lam2 * ((1-eps_2)**k)) if (lam2 != "NA" and eps_2) else 1.0
-    
-    # if obs|AuB| is smaller than exp|AuB| at d = 0
-    zde = estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, 0.0, k)
-    if (((zde - msh_int) / zde) < 0.01):
-        msh_int = zde
-        
-    def g(est_d):
-       return estimate_intersection(ref_hist, lam1, lam2, eps_1, eps_2, eta1, eta2, est_d, k) - msh_int
-
-    return g 
-
-def estimate_reskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, ref_hist_df):
-    '''estimates repeat-aware genomic distance between samples...'''
-    if ref_hist_df.shape[1] > 2:
-        ref_hist = ref_hist_df[[0, sample_1]]
-    elif ref_hist_df.shape[1] == 2:
-        ref_hist = ref_hist_df
-
-    try:
-        if sample_1 == sample_2 and lib_1 == lib_2:
-            return sample_1, sample_2, 0.0
-        
-        sample_dir_1 = os.path.join(lib_1, sample_1)
-        sample_dir_2 = os.path.join(lib_2, sample_2)
-
-        # error rates
-        eps_1 = ee[sample_1] if ee[sample_1] != "NA" else None
-        eps_2 = ee[sample_2] if ee[sample_2] != "NA" else None
-
-        # get size (sum of kmers) and usize (count of unique kmers)
-        _ , size_1, usize_1 = get_hist_data(lib_1, sample_1)
-        _ , size_2, usize_2 = get_hist_data(lib_2, sample_2)
-
-        # get i (obs|AuB|) from Mash
-        msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
-        msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
-        dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
-        j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
-        i = j * (usize_1 + usize_2) / (1.0 + j)
-
-        # genome size (from reference)
-        genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
-
-        # kmer coverage coverage (lambda)
-        cov_1 = float(size_1/genome_size) if ce[sample_1] != "NA" else "NA"
-        cov_2 = float(size_2/genome_size) if ce[sample_2] != "NA" else "NA"
-
-        d = brenth(f=intersection_fnctn(ref_hist, i, cov_1, cov_2, eps_1, eps_2, k), a=0, b=1)
-
-        # jukes-cantor transform
-        if tran:
-            if d < 0.75:
-                d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
-            else:
-                d = 5.0
-        return sample_1, sample_2, d
-    
-    except Exception as e:
-        print(e)
-        return sample_1, sample_2, None
-
-def estim_oh(xi, hr, hcount, ref_hist, maxj):
-    '''computes L2 error between estimated kmer histogram against the observed histogram (hcount)...'''
-    errs = [(hcount[h] - np.dot(ref_hist.iloc[0:maxj,1], 
-                                np.array([np.exp(-j*xi) * np.power(j*xi,h) / math.factorial(h) for j in range(1, maxj+1)]))
-        )/math.sqrt(hcount[h]) for h in hr]
-    err = sum((e ** 2 for e in errs)) /  len(errs)
-    return(err)
-
-def xi_function(hrange, count, ref_hist, maxj):
-    '''returns L2 error-computing function...'''
-    fxn = (lambda xi : estim_oh(xi, hrange, count, ref_hist, maxj))
-    return(fxn)
-
-def estimate_cov_from_r(ref_hist_df, ksum, count, k, sample, l, e, range_start=None, range_end=None, maxj=None):
-        '''estimates lambda and epsilon using a repeat spectrum...'''
-        # Check if repeat spectrum is one sample (reference assembly) or mutliple (respect)
-        if ref_hist_df.shape[1] > 2:
-            ref_hist = ref_hist_df[[0, sample]]
-        elif ref_hist_df.shape[1] == 2:
-            ref_hist = ref_hist_df
-
-        genome_size = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1]) 
-        lam = float(ksum/genome_size)
-        
-        # minimizing L2 error between hcount and estimated kmer histogram...
-        hl = 2
-        erscore = {}
-        maxj = min(ref_hist.shape[0], 50)
-        for hl in range(2,10*(int(lam)+1)):
-                hrange=range(max(int(lam),2),min(max((int(lam)+hl),5),len(count)))
-                try:
-                    xi = minimize(fun = xi_function(hrange, count, ref_hist, maxj), 
-                                  x0 = lam*((1-0.003)**k), 
-                                  bounds = [(lam*(1-0.03)**k, lam*((1-0.0001)**k))])
-                    xi = xi.x[0]
-                    eps = 1 - (xi / lam) ** (1.0 / k)
-                    erscore[estim_oh(xi, hrange, count, ref_hist, maxj)] = (eps, hl)  
-                except ValueError:
-                    eps = -1
-        
-        if erscore.keys():
-            eps = erscore[min(erscore.keys())][0]
-        else:
-            eps = -1
-
-        eps = eps if e is None else e
-        return (eps, lam)
-
-############################################
-##          Pop-Gen Estimators            ##
-############################################
-
-def fst(args):
-    return None
-
-############################################
 
 def sequence_stat(sequence):
     total_length = 0
     n_reads = 0
     max_length = 0
-    # TODO: seqtk comp causing slowing issues in some clusters especially with Skmer subsample.
-    # NOTE: potential fix is to replace with "bbduk.sh in=X lhist=X.txt"
     comp_stdout = check_output(["seqtk", "comp", sequence], stderr=STDOUT, universal_newlines=True)
     reads_stat = comp_stdout.split('\n')
     for stat in reads_stat:
@@ -513,7 +62,8 @@ def cov_temp_func(x, r, p, k, l):
     lam = x * (1.0 * (l - k)) / l
     return lam * (p ** 2) * np.exp(-lam * p) - 2 * r * (p * np.exp(-lam * p) + 1 - p)
 
-def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
+
+def estimate_cov(sequence, lib, k, e, nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     try:
@@ -522,12 +72,8 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
         if Error.errno != errno.EEXIST:
             raise
     info_file = os.path.join(sample_dir, sample + '.dat')
-    
-    # Does not recalculate histogram if histogram already exists
-    histo_stderr = check_jellyfish_files(histo_file, sample_dir, sample, sequence, k, nth)
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
-    # if sample is assembly...
     if ml > seq_len_threshold:
         cov = "NA"
         g_len = tl
@@ -538,6 +84,15 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
                     'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
         return sample, cov, g_len, eps, l
 
+    mercnt = os.path.join(sample_dir, sample + '.jf')
+    histo_file = os.path.join(sample_dir, sample + '.hist')
+    #call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
+    #     stderr=open(os.devnull, 'w'))
+    #histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
+    #with open(histo_file, mode='w') as f:
+    #    f.write(histo_stderr)
+    #os.remove(mercnt)
+    histo_stderr = "".join(open(histo_file,mode='r').readlines())
     count = [0]
     ksum = 0
     for item in histo_stderr.split('\n')[:-1]:
@@ -552,34 +107,44 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
             f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
                     'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
         return sample, cov, g_len, eps, l
-    ind = min(count.index(max(count[2:])), len(count) - 2)+1
-    if (e is not None) and (ref_hist is None):
-        eps = e
-        p0 = np.exp(-k * eps)
-        if ind < 2:
-            r21 = 1.0 * count[2] / count[1]
-            cov = newton(cov_temp_func, 0.05, args=(r21, p0, k, l))
-        else:
-            cov = (1.0 / p0) * (1.0 * l / (l - k)) * (ind + 1) * count[ind + 1] / count[ind]
-    elif ind < 2:
-        sys.stderr.write('Not enough information to co-estimate coverage and error rate of {0}; '.format(sample) +
+
+    i = min(count.index(max(count[2:])), len(count) - 2)
+    ind = i
+    if ind < 2:
+        sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default error rate {0}\n'.format(default_error_rate))
         eps = default_error_rate
         p0 = np.exp(-k * eps)
         r21 = 1.0 * count[2] / count[1]
         cov = newton(cov_temp_func, 0.05, args=(r21, p0, k, l))
     else:
-        if ref_hist is not None:
-            # spectrum-based calculation of error and coverage (ReSkmer)
-            (eps, lam) = estimate_cov_from_r(ref_hist, ksum, count, k, sample, l, e)
+        r =  count[i + 1] / count[i]
+        rn =  count[i + 2] / count[i+1]
+        if 8 * (2 + i) * rn > 9 * (1 + i) * r:
+            sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
+                         'Using default theta but computing other values {0}\n'.format(default_theta))
+            theta = default_theta
+            Q = (1-theta)**k
+            xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**i+np.exp(x)) * Q)/((1+i)* (2* np.exp(x)+(2**i-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
         else:
-            gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
-            lam = (np.exp(-gam) * (gam ** ind) / math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
-            eps = 1 - (gam / lam) ** (1.0 / k)
-        cov = (1.0 * l / (l - k)) * lam
-    tot_seq = 1.0 * ksum * l / (l - k)
-    g_len = int(tot_seq / cov)
+            xi = 1./4 * (3 * (1 + i) * r - math.sqrt((1 + i) * r) *math.sqrt(max(0, -8 * (2 + i) * rn + 9 * (1 + i) * r)))
+            theta = 1 - 2**(1/ k) * ((np.exp(xi) * (-r - i* r + xi))/( 2**i *r - 2 * np.exp(xi) * r + 2**i * i * r - 2* np.exp(xi) * i* r - 2**(1 + i) * xi + 2 * np.exp(xi)* xi))**(1/k) 
+            Q = (1-theta)**k
 
+        if e is not None:
+            eps = e
+            lam = xi / (1-eps)**k
+        else:
+           lam = count[1]/count[i] * ( (2 *np.exp(-xi) + (2**i * np.exp(-2*xi) - 2 * np.exp(-xi))* Q) * (xi**i) )/(2 * math.factorial(i) ) + (-1 + np.exp(xi)) * (np.exp(-xi) + np.exp(-2*xi) * Q) * xi
+           eps = 1-(xi/lam)**(1/k)
+        cov = (1.0 * l / (l - k)) * lam
+        print("Error calc:",i, r, xi, lam, Q, theta, cov, eps)
+
+    tot_seq = 1.0 * ksum 
+    g_len = int(tot_seq / 2.0 / lam)
+    print("ksum,",ksum,g_len,lam, l / (l - k))
+
+    # TODO: write theta to file to
     if eps > error_rate_threshold or eps < 0:
         cov = "NA"
         g_len = "NA"
@@ -591,7 +156,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
 
     with open(info_file, mode='w') as f:
         f.write('coverage\t{0}\n'.format(repr(cov)) + 'genome_length\t{0}\n'.format(g_len) +
-                'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l))
+                'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l) + 'theta\t{0}\n'.format(repr(theta)))
     return sample, cov, g_len, eps, l
 
 
@@ -633,7 +198,7 @@ def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     return
 
 
-def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False):
+def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     msh = os.path.join(sample_dir, sample)
@@ -648,14 +213,15 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False):
             os.devnull, 'w'))
         return
     copy_thres = int(cov / cov_thres) + 1
-    if cov < cov_thres or eps == 0.0 or has_spectrum:
-        # ReSkmer or below Skmer high-cov threshold...
+    if cov < cov_thres or eps == 0.0:
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
+        pass
     else:
-        # high-coverage Skmer
+        print("removing kmers with less than %d cardinality" %copy_thres)
         call(["mash", "sketch", "-m", str(copy_thres), "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh,
               sequence], stderr=open(os.devnull, 'w'))
+        pass
     return
 
 
@@ -666,20 +232,34 @@ def jacc2dist(j, k, gl1, gl2, len_penalty):
         return 1 - (1.0 * (gl1 + gl2) * j / (1.0 * min(gl1, gl2) * (1 + j))) ** (1.0 / k)
 
 
-def dist_temp_func(cov, eps, k, l, cov_thres):
+def dist_temp_func(cov, eps, k, l, cov_thres, theta):
     if cov == "NA":
         return [1.0, 0]
     p = np.exp(-k * eps)
-    copy_thres = int(1.0 * cov / cov_thres) + 1
+    copy_thres = int(1.0 * cov / (1.0* cov_thres)) + 1
     lam = 1.0 * cov * (l - k) / l
     if copy_thres == 1 or p == 1:
         return [1 - np.exp(-lam * p), lam * (1 - p)]
     else:
-        s = [(lam * p) ** i / math.factorial(i) for i in range(copy_thres)]
-        return [1 - np.exp(-lam * p) * sum(s), 0]
+        print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
+        # TODO: change 2 lam to to lam / (2-(1-theta)**k)
+        #s = [(2*lam / (2-(1-0.003)**31) * p) ** i / np.math.factorial(i) for i in range(copy_thres)]
+        #return [1 - np.exp(-2*(lam / (2-(1-0.003)**31)) * p) * sum(s), 0]
+        #NOTE: change 31 to k?
+        s = [(2*p*lam/(1+theta)) ** i / np.math.factorial(i) for i in range(copy_thres)]
+        return [1 - np.exp(-(2*p*lam/(1+theta))) * sum(s), 0]
 
 
-def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
+def get_hist_data(lib, sample):
+    sample_dir = os.path.join(lib, sample)
+    histo_file = os.path.join(sample_dir, sample + '.hist')
+    ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
+    ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
+    usum = sum(ref_hist.iloc[:, 1])
+    return ref_hist, ksum, usum
+
+
+def estimate_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, theta, k, cov_thres, tran):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     sample_dir_1 = os.path.join(lib_1, sample_1)
@@ -699,8 +279,16 @@ def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov
     eps_2 = ee[sample_2]
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
-    r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres)
-    r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
+    theta_1 = theta[sample_1]
+    theta_2 = theta[sample_2]
+    #eps_1 = 0.00316
+    #eps_2 = 0.00316
+    #cov_1 = 4
+    #cov_2 = 4
+    #gl_1 = gl_2 = 108276340
+    print("pars used:", eps_1,eps_2,cov_1,cov_2)
+    r_1 = dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
+    r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
     wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
     zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
     d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
@@ -709,6 +297,32 @@ def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov
             d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
         else:
             d = 5.0
+    
+    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
+    
+    i = j * (usize_1 + usize_2) / (1.0 + j)
+    EI = i / gl_1
+    print(usize_1, usize_2)
+    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
+    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
+    power = (6/11 * 1/k)
+    lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
+    lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
+    #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
+    #psi_2 = 2*lam_2/2*(1-np.power(1-eps_2, k))
+    psi_1 = r_1[1]
+    psi_2 = r_2[1]
+    eta1= r_1[0]
+    eta2= r_2[0]
+    print("psi1", psi_1, "psi_2", psi_2, "j", j)
+    numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
+    #4*eta1*eta2*(eta1 + eta2 - 5) + j *((4*eta1-5)*(eta2**2) + 4*(eta1-5)*eta1*eta2+(22-5*eta1)*eta1 + 11*(2*eta2 + psi_1 + psi_2))
+    denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
+    #(r_2[0]**2)*(11*(r_1[0]**2)*(j+1) - (18*r_1[0]*(j+1)) + 6*j) + 6*(r_1[0]**2)*j - 6*(3*r_1[0]-4)*r_1[0]*r_2[0]*(j+1)
+    print("eta1", r_1[0], "eta2", r_2[0], "int per pos",  EI, "int", i, "num", numerator, "denom", denominator, "pow", power)
+    d = 1 - np.power(numerator/denominator,power)
+    print(d)
     return sample_1, sample_2, d
 
 
@@ -728,15 +342,12 @@ def reference(args):
 
     # Making a list of sample names
     formats = ['.fq', '.fastq', '.fa', '.fna', '.fasta']
-    formats += ['.fq.gz', '.fastq.gz', '.fa.gz', '.fna.gz', '.fasta.gz']
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
 
-    # Check if refs have duplicate entry or no entries
-    if not samples_names:
-        raise FileNotFoundError("No files with extensions %s found" % " ".join(formats))
-    elif len(samples_names) != len(set(samples_names)):
+    # Check if refs have duplicate entry
+    if len(samples_names) != len(set(samples_names)):
         raise ValueError('Duplicate inputs (possibly same name with different extensions), please change '
                          'the file name(s) and try again')
 
@@ -752,8 +363,6 @@ def reference(args):
     len_est = dict()
     err_est = dict()
     read_len = dict()
-    # for DipSkmer exclusively...
-    theta = dict()
 
     # Number of pools and threads for multi-processing
     n_pool = min(args.p, len(sequences))
@@ -761,61 +370,25 @@ def reference(args):
     n_proc_cov = n_pool * n_thread_cov
     n_pool_dist = min(args.p, len(sequences) ** 2)
 
-    # Checks for incompatible equation input
-    if args.r and args.d:
-        raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
-
-    # If ReSkmer reference is given, read reference.
-    ref_hist = parse_reference(args.r, args.k, args.p, args.l) if args.r else None
-
-    # If input diploid equations want to be used...
-    is_diploid = args.d
-
     # Computing coverage, genome length, error rate, and read length
     sys.stderr.write('[skmer] Estimating coverages using {0} processors...\n'.format(n_proc_cov))
     pool_cov = mp.Pool(n_pool)
-
-    if not is_diploid:
-        results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.l, args.k, args.e, n_thread_cov, ref_hist))
-                    for seq in sequences]
-        for result in results_cov:
-            (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
-            cov_est[name] = coverage
-            len_est[name] = genome_length
-            err_est[name] = error_rate
-            read_len[name] = read_length
-        pool_cov.close()
-        pool_cov.join()
-    else:
-        #TODO: add all estimate cov exceptions...
-        results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
-                    for seq in sequences]
-        for result in results_cov:
-            (name, coverage, genome_length, error_rate, read_length, theta) = result.get(9999999)
-            cov_est[name] = coverage
-            len_est[name] = genome_length
-            err_est[name] = error_rate
-            read_len[name] = read_length
-            theta[name] = theta
-        pool_cov.close()
-        pool_cov.join()
-    
-
+    results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
+                   for seq in sequences]
+    for result in results_cov:
+        (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
+        cov_est[name] = coverage
+        len_est[name] = genome_length
+        err_est[name] = error_rate
+        read_len[name] = read_length
+    pool_cov.close()
+    pool_cov.join()
     
     # Sketching genome-skims
     sys.stderr.write('[skmer] Sketching sequences using {0} processors...\n'.format(n_pool))
     pool_sketch = mp.Pool(n_pool)
-
-    if args.r is not None:
-        results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
-                                                            coverage_threshold, args.S, True)) for seq in sequences]
-    elif is_diploid:
-        results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
-                                                            dip_coverage_threshold, args.S, False)) for seq in sequences]
-    else:
-        results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
-                                                            coverage_threshold, args.S, False)) for seq in sequences]
-    
+    results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
+                                                            coverage_threshold, args.S)) for seq in sequences]
     for result in results_sketch:
         result.get(9999999)
     pool_sketch.close()
@@ -824,19 +397,9 @@ def reference(args):
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    if args.r is not None:
-        results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
-                                                               err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
+    results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, args.l, args.l, cov_est, len_est, err_est,
+                                                               read_len, args.k, coverage_threshold, args.t))
                     for s1 in samples_names for s2 in samples_names]
-    elif is_diploid:
-        results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
-                                                               err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
-                    for s1 in samples_names for s2 in samples_names]
-    else:
-        results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
-                                                               err_est, read_len, args.k, coverage_threshold, args.t))
-                    for s1 in samples_names for s2 in samples_names]
-
 
     for result in results_dist:
         dist_output = result.get(9999999)
@@ -850,14 +413,13 @@ def reference(args):
 
 
 def subsample(args):
+
     # Creating a directory for subsample
     try:
         os.makedirs(args.sub)
     except OSError as Error:
         if Error.errno != errno.EEXIST:
             raise
-    
-    ref_hist=parse_reference(args.r, args.k, args.p, args.sub) if args.r else None
 
     # Making a list of sample names
     formats = ['.fq', '.fastq', '.fa', '.fna', '.fasta']
@@ -999,7 +561,7 @@ def subsample(args):
 
             # Computing coverage, genome length, error rate, and read length of replicates  using reference function
             pool_cov = mp.Pool(n_pool)
-            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
+            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov))
                        for seq in bs_sequences]
             for result in results_cov:
                 (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
@@ -1014,13 +576,8 @@ def subsample(args):
             # Sketching genome-skims
             pool_sketch = mp.Pool(n_pool)
             #reads_sketch_sz = 100000
-            if args.r is not None:
-                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
-            else:
-                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
-            
+            results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
+                                                            coverage_threshold, rand_seed_list[b])) for seq in bs_sequences]
             for result in results_sketch:
                 result.get(9999999)
             pool_sketch.close()
@@ -1029,17 +586,9 @@ def subsample(args):
 
             # Estimating pair-wise distances
             pool_dist = mp.Pool(n_pool_dist)
-
-            if args.r is not None:
-                results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
-                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
-                                                            err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
-                                                            for s1 in samples_names for s2 in samples_names]
-            else:
-                results_dist = [pool_dist.apply_async(estimate_skmer_dist, 
-                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
-                                                            err_est, read_len, args.k, coverage_threshold, args.t))
-                                                            for s1 in samples_names for s2 in samples_names]
+            results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, sub_lib, sub_lib, cov_est, len_est, err_est,
+                                                                   read_len, args.k, coverage_threshold, args.t))
+                        for s1 in samples_names for s2 in samples_names]
 
             for result in results_dist:
                 dist_output = result.get(9999999)
@@ -1059,13 +608,8 @@ def subsample(args):
 
             # Sketching genome-skims
             pool_sketch = mp.Pool(n_pool)
-            if args.r is not None:
-                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
-                                                                    coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
-            else:
-                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
-                                                                    coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
-            
+            results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
+                                                            coverage_threshold, rand_seed_list[b])) for seq in sequences]
             for result in results_sketch:
                 result.get(9999999)
             pool_sketch.close()
@@ -1075,16 +619,9 @@ def subsample(args):
 
             # Estimating pair-wise distances
             pool_dist = mp.Pool(n_pool_dist)
-            if args.r is not None:
-                results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
-                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
-                                                            err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
-                                                            for s1 in samples_names for s2 in samples_names]
-            else:
-                results_dist = [pool_dist.apply_async(estimate_skmer_dist, 
-                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
-                                                            err_est, read_len, args.k, coverage_threshold, args.t))
-                                                            for s1 in samples_names for s2 in samples_names]
+            results_dist = [pool_dist.apply_async(estimate_dist, args=(s1, s2, sub_lib, sub_lib, cov_est, len_est, err_est,
+                                                                   read_len, args.k, coverage_threshold, args.t))
+                        for s1 in samples_names for s2 in samples_names]
 
             for result in results_dist:
                 dist_output = result.get(9999999)
@@ -1128,6 +665,8 @@ def subsample(args):
 
 
 def correction(args):
+     
+
 
     # Making a list of sample names
     try:
@@ -1255,6 +794,8 @@ def distance(args):
     len_est = dict()
     err_est = dict()
     read_len = dict()
+    theta = dict()
+    print("1")
     for ref in refs:
         ref_dir = os.path.join(args.library, ref)
         info_file = os.path.join(ref_dir, ref + '.dat')
@@ -1274,28 +815,26 @@ def distance(args):
                 err_est[ref] = 0
                 read_len[ref] = "NA"
         else:
+            print("2")
             cov_est[ref] = float(info.split('\n')[0].split('\t')[1])
+            print(cov_est[ref])
             len_est[ref] = int(info.split('\n')[1].split('\t')[1])
             err_est[ref] = float(info.split('\n')[2].split('\t')[1])
             read_len[ref] = int(info.split('\n')[3].split('\t')[1])
+            theta[ref] = float(info.split('\n')[4].split('\t')[1])
 
     # Number of pools and threads for multi-processing
+    print("2.5")
     n_pool_dist = min(args.p, len(refs) ** 2)
-
+    print("3")
+    print(theta)
+    print("4")
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-
-    if args.r is not None:
-        ref_hist=parse_reference(args.r, kl, args.p, args.library)
-        results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
+    results_dist = [pool_dist.apply_async(estimate_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+                                                               err_est, read_len, theta, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
-    else:
-        results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t))
-                    for r1 in refs for r2 in refs]
-
 
     for result in results_dist:
         dist_output = result.get(9999999)
@@ -1372,14 +911,10 @@ def query(args):
     # Number of pools for multi-processing
     n_pool_dist = min(args.p, len(refs))
 
-    # Processing Reference Histogram
-    ref_hist = parse_reference(args.r, kl, args.p, args.library) if args.r else None
-
     # Computing the coverage, genome length, error rate, and read length of query sample
     sys.stderr.write('[skmer] Estimating the coverage using {0} processors...\n'.format(args.p))
-    #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
-    #                                                                         args.p)
-    (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e, args.p, ref_hist)
+    (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
+                                                                             args.p)
     cov_est[sample] = coverage
     len_est[sample] = genome_length
     err_est[sample] = error_rate
@@ -1387,20 +922,14 @@ def query(args):
 
     # Sketching the query genome-skim
     sys.stderr.write('[skmer] Sketching the genome-skim...\n')
-    if args.r is not None:
-        sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, True)
-    else:
-        sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, False)
+    sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed)
 
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    if args.r is not None:
-        results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t, ref_hist)) for ref in refs]
-    else:
-        results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t)) for ref in refs]
+    results_dist = [pool_dist.apply_async(estimate_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, coverage_threshold, args.t))
+                    for ref in refs]
     for result in results_dist:
         dist_output = result.get(9999999)
         result_s[dist_output[1]] = dist_output[2]
@@ -1421,6 +950,7 @@ def query(args):
             print('Directory not copied. Error: %s' % e)
 
     shutil.rmtree(sample_dir)
+
 
 def main():
     # Input arguments parser
@@ -1465,14 +995,11 @@ def main():
     parser_ref.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
-    parser_ref.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data. Runs ReSkmer equations for repeat-aware distances')
-    parser_ref.add_argument('-d', action='store_true', 
-                            help='Applies DipSkmer equations for diploid distance equations')
     parser_ref.set_defaults(func=reference)
 
     # Subsample command subparser
     parser_bt = subparsers.add_parser('subsample',
-                                       description='Performs subsample on a library of reference genome-skims or assemblies')
+                                       description='Performs  subsample on a library of reference genome-skims or assemblies')
     parser_bt.add_argument('input_dir',
                             help='Directory of input genome-skims or assemblies (dir of .fastq/.fq/.fa/.fna/.fasta files)')
     #parser_bt.add_argument('-l', default=os.path.join(os.getcwd(), 'library'),
@@ -1499,10 +1026,7 @@ def main():
     parser_bt.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
-    parser_bt.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
-
-    parser_bt.set_defaults(func=subsample)
-   
+    parser_bt.set_defaults(func=subsample)    
 
 
     # Correction command subparser
@@ -1527,7 +1051,6 @@ def main():
     parser_dist.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                              help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                   'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
-    parser_dist.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_dist.set_defaults(func=distance)
 
     # query command subparser
@@ -1545,17 +1068,8 @@ def main():
                             help='Apply Jukes-Cantor transformation to distances. Output 5.0 if not applicable')
     parser_qry.add_argument('-p', type=int, choices=list(range(1, mp.cpu_count() + 1)), default=mp.cpu_count(),
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
-                                 'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P') 
-    parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
+                                 'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_qry.set_defaults(func=query)
-
-    # fst command subparser
-    parser_fst = subparsers.add_parser('pop',
-                                       description='Given an annotation file and a reference distance matrix, it will output the Dxy, Fst (Hudson and Nei), and pi matrices of different populations.')
-    parser_fst.add_argument('matrix', help='Path to distance matrix')
-    parser_fst.add_argument('annotation', help='Path to annotation file TSV with the format (sample\tpopulation).')
-    parser_fst.add_argument('-o', help='Path to output matrices.')
-    parser_fst.set_defaults(func=fst)
 
     args = parser.parse_args()
 
