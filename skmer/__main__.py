@@ -5,6 +5,7 @@
 import numpy as np
 from numpy import random
 from scipy.optimize import newton, brenth, minimize
+from scipy.stats import poisson
 import math
 import argparse
 import os
@@ -22,9 +23,9 @@ __version__ = 'skmer 5.0.0'
 
 # Hard-coded param
 coverage_threshold = 5
-dip_coverage_threshold = 4
+dip_coverage_threshold = 2
 error_rate_threshold = 0.03
-default_theta = 0.01
+default_theta = 0.005
 seq_len_threshold = 2000
 default_error_rate = 0.01
 
@@ -37,6 +38,7 @@ def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
     p = np.exp(-k * eps)
     copy_thres = int(1.0 * cov / (1.0* cov_thres)) + 1
     lam = 1.0 * cov * (l - k) / l
+    print(cov,eps,cov_thres)
     if copy_thres == 1 or p == 1:
         return [1 - np.exp(-lam * p), lam * (1 - p)]
     else:
@@ -45,10 +47,85 @@ def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
         #s = [(2*lam / (2-(1-0.003)**31) * p) ** i / np.math.factorial(i) for i in range(copy_thres)]
         #return [1 - np.exp(-2*(lam / (2-(1-0.003)**31)) * p) * sum(s), 0]
         #NOTE: change 31 to k?
-        s = [(2*p*lam/(1+theta)) ** i / np.math.factorial(i) for i in range(copy_thres)]
-        return [1 - np.exp(-(2*p*lam/(1+theta))) * sum(s), 0]
+        #s = [(2*p*lam/(1+theta)) ** i / np.math.factorial(i) for i in range(copy_thres)]
+        s = [np.exp(-lam*(1-eps)**k) * math.pow(lam*(1-eps)**k, i)/math.factorial(i) for i in range(copy_thres)] 
+        print(1-sum(s))
+        return [1 - sum(s), 0]
+
 
 def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
+    if sample_1 == sample_2 and lib_1 == lib_2:
+        return sample_1, sample_2, 0.0
+    sample_dir_1 = os.path.join(lib_1, sample_1)
+    sample_dir_2 = os.path.join(lib_2, sample_2)
+    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+    gl_1 = le[sample_1]
+    gl_2 = le[sample_2]
+    if gl_1 == "NA" or gl_2 == "NA":
+        gl_1 = 1
+        gl_2 = 1
+    cov_1 = ce[sample_1]
+    cov_2 = ce[sample_2]
+    eps_1 = ee[sample_1]
+    eps_2 = ee[sample_2]
+    l_1 = rl[sample_1]
+    l_2 = rl[sample_2]
+    theta_1 = theta[sample_1]
+    theta_2 = theta[sample_2]
+
+    #print("pars used:", eps_1,eps_2,cov_1,cov_2)
+    r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
+    r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
+    
+    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
+    
+    i = j * (usize_1 + usize_2) / (1.0 + j)
+    EI = i / gl_1
+    #print(usize_1, usize_2)
+    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
+    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
+    lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
+    lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
+    #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
+    #psi_2 = 2*lam_2/2*(1-np.power(1-eps_2, k))
+    psi_1 = r_1[1]
+    psi_2 = r_2[1]
+    eta1= r_1[0]
+    eta2= r_2[0]
+    #print("psi1", psi_1, "psi_2", psi_2, "j", j)
+    t = int(1.0 * cov_1 / (1.0* cov_thres)) + 1
+    xi_1 = lam_1 * np.exp(-k*eps_1)
+    xi_2 = lam_2 * np.exp(-k*eps_2)
+    
+    if t > 1:
+        print("printing exact solution, since coverage is high:", cov_1, cov_2)
+        nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
+        numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
+        denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
+        denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+    
+        Q = 1 + numerator / (denom_1 + denom_2)
+        d = 1 - np.power(Q, (6/11 * 1/k))
+    else:
+        numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
+        power = (6/11 * 1/k)
+        denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
+        d = 1 - np.power(numerator/denominator, (6/11 * 1/k))
+
+    if tran or math.isnan(d):
+        if d < 0.75:
+            d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
+        else:
+            d = 'nan'
+    d = 0.0 if float(d) < 0.0 else round(float(d), 6)
+    print(d)
+    return sample_1, sample_2, d
+
+def estimate_dipskmer_dist_approx(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
     if sample_1 == sample_2 and lib_1 == lib_2:
         return sample_1, sample_2, 0.0
     sample_dir_1 = os.path.join(lib_1, sample_1)
@@ -93,6 +170,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     eta1= r_1[0]
     eta2= r_2[0]
     #print("psi1", psi_1, "psi_2", psi_2, "j", j)
+
     numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
     #4*eta1*eta2*(eta1 + eta2 - 5) + j *((4*eta1-5)*(eta2**2) + 4*(eta1-5)*eta1*eta2+(22-5*eta1)*eta1 + 11*(2*eta2 + psi_1 + psi_2))
     denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
@@ -104,7 +182,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         if d < 0.75:
             d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
         else:
-            d = 5.0
+            d = 'nan'
     print(d)
     return sample_1, sample_2, d
 
@@ -203,13 +281,34 @@ def estimate_diploid_cov(sequence, lib, k, e, nth):
 
 def check_jellyfish_files(sample_dir, sample, sequence, k, nth):
     '''checks if jellyfish file already exists to avoid recomputing'''
+    print(str(sample_dir), str(sample), str(sequence), str(k), str(nth))
     mercnt = os.path.join(sample_dir, sample + '.jf')
     histo_file = os.path.join(sample_dir, sample + '.hist')
 
     if (not os.path.exists(histo_file)) or (os.path.getsize(histo_file) == 0):
         mercnt = os.path.join(sample_dir, sample + '.jf')
-        call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
-             stderr=open(os.devnull, 'w'))
+        print(mercnt)
+        if sequence.endswith("gz"):
+            print("ends with gz")
+            #zcat_cmd = ["zcat", sequence]
+            jellyfish_cmd = ["zcat", sequence, "|", "jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, "/dev/fd/0"]
+            
+            subprocess.run(" ".join(jellyfish_cmd), shell=True, check=True)
+            #with subprocess.Popen(zcat_cmd, stdout=subprocess.PIPE) as zcat_proc:
+            #    with subprocess.Popen(jellyfish_cmd, stdin=zcat_proc.stdout) as jellyfish_proc:
+            #        zcat_proc.stdout.close()
+            #        jellyfish_proc.communicate()
+            #zcat_proc = subprocess.Popen(zcat_cmd, stdout=subprocess.PIPE)
+
+            #jellyfish_proc = subprocess.Popen(jellyfish_cmd, stdin=zcat_proc.stdout)
+            
+            #zcat_proc.stdout.close()
+
+            #jellyfish_proc.communicate()
+            #zcat_proc.wait()
+        else:
+            call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
+                stderr=open(os.devnull, 'w'))
         histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000", mercnt], stderr=STDOUT, universal_newlines=True)
         with open(histo_file, mode='w') as f:
             f.write(histo_stderr)
@@ -524,7 +623,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
     info_file = os.path.join(sample_dir, sample + '.dat')
     
     # Does not recalculate histogram if histogram already exists
-    histo_stderr = check_jellyfish_files(histo_file, sample_dir, sample, sequence, k, nth)
+    histo_stderr = check_jellyfish_files(sample_dir, sample, sequence, k, nth)
 
     (l, ml, tl, n_reads) = sequence_stat(sequence)
     # if sample is assembly...
@@ -791,12 +890,12 @@ def reference(args):
         results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
                     for seq in sequences]
         for result in results_cov:
-            (name, coverage, genome_length, error_rate, read_length, theta) = result.get(9999999)
+            (name, coverage, genome_length, error_rate, read_length, theta_val) = result.get(9999999)
             cov_est[name] = coverage
             len_est[name] = genome_length
             err_est[name] = error_rate
             read_len[name] = read_length
-            theta[name] = theta
+            theta[name] = theta_val
         pool_cov.close()
         pool_cov.join()
     
@@ -1255,6 +1354,7 @@ def distance(args):
     len_est = dict()
     err_est = dict()
     read_len = dict()
+    theta_est = dict()
     for ref in refs:
         ref_dir = os.path.join(args.library, ref)
         info_file = os.path.join(ref_dir, ref + '.dat')
@@ -1278,6 +1378,7 @@ def distance(args):
             len_est[ref] = int(info.split('\n')[1].split('\t')[1])
             err_est[ref] = float(info.split('\n')[2].split('\t')[1])
             read_len[ref] = int(info.split('\n')[3].split('\t')[1])
+            theta_est[ref] = float(info.split('\n')[4].split('\t')[1])
 
     # Number of pools and threads for multi-processing
     n_pool_dist = min(args.p, len(refs) ** 2)
@@ -1292,8 +1393,8 @@ def distance(args):
                                                                err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
                     for r1 in refs for r2 in refs]
     else:
-        results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t))
+        results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, coverage_threshold, args.t, theta_est))
                     for r1 in refs for r2 in refs]
 
 
