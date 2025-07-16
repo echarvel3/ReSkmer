@@ -693,7 +693,6 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
                 'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l))
     return sample, cov, g_len, eps, l
 
-
 def estimate_stats(sequence, nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
 
@@ -899,8 +898,6 @@ def reference(args):
         pool_cov.close()
         pool_cov.join()
     
-
-    
     # Sketching genome-skims
     sys.stderr.write('[skmer] Sketching sequences using {0} processors...\n'.format(n_pool))
     pool_sketch = mp.Pool(n_pool)
@@ -956,10 +953,14 @@ def subsample(args):
         if Error.errno != errno.EEXIST:
             raise
     
+    # ReSkmer reference processing...
     ref_hist=parse_reference(args.r, args.k, args.p, args.sub) if args.r else None
+    # DipSkmer argument...
+    is_diploid = args.d
 
     # Making a list of sample names
     formats = ['.fq', '.fastq', '.fa', '.fna', '.fasta']
+    formats += ['.fq.gz', '.fastq.gz', '.fa.gz', '.fna.gz', '.fasta.gz']
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
@@ -984,6 +985,9 @@ def subsample(args):
     read_len = dict()
     bs_kmer_sum = dict()
     sample_read_cnt = dict()
+    # Exclusively for DipSkmer...
+    if is_diploid:
+        theta = dict()
 
     # Number of pools and threads for multi-processing
     n_pool = min(args.p, len(sequences))
@@ -991,18 +995,41 @@ def subsample(args):
     n_proc_cov = n_pool * n_thread_cov
     n_pool_dist = min(args.p, len(sequences) ** 2)
 
+    
+
     # Computing coverage, genome length, error rate, read length and k-mer count
     sys.stderr.write('[skmer] Starting subsampling using {0} processors...\n'.format(n_proc_cov))
     pool_cov = mp.Pool(n_pool)
-    results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
-                   for seq in sequences]
+    
+    if args.C:
+        if is_diploid:
+            results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov) + (0.0,))
+                        for seq in sequences]
+        else:
+            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist) + (0.0,))
+                        for seq in sequences]
+    else:    
+        results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
+                    for seq in sequences]
+        
     for result in results_cov:
-        (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
+        if is_diploid:
+            (name, coverage, genome_length, error_rate, read_length, theta_est, rd_cnt) = result.get(9999999)
+            theta[name] = theta_est
+        else:
+            (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
         cov_est[name] = coverage
         len_est[name] = genome_length
         err_est[name] = error_rate
         read_len[name] = read_length
-        sample_read_cnt[name] = rd_cnt
+        if args.C:
+            rl_temp = float('nan') if read_len[name] == "NA" else int(read_len[name])
+            cov_temp = float('nan') if cov_est[name] == "NA" else int(cov_est[name])
+            gl_temp = float('nan') if len_est[name] == "NA" else int(len_est[name])
+
+            sample_read_cnt[name] = "NA" if math.isnan((gl_temp * cov_temp) / rl_temp) else round((gl_temp * cov_temp) / rl_temp)
+        else:
+            sample_read_cnt[name] = rd_cnt
         bs_kmer_sum[name] = args.s
     pool_cov.close()
     pool_cov.join()
@@ -1031,9 +1058,14 @@ def subsample(args):
     asm_sketch_sz = 0
 
     if input_data == 'reads':
-       bs_sample_sz = sample_read_cnt
-       for key, value in sample_read_cnt.items():
-           bs_block_sz [key] = round((value)**(coef))
+        if args.C:
+            bs_sample_sz = sample_read_cnt
+            for key, value in sample_read_cnt.items():
+                bs_block_sz [key] = round(value / cov_est[name] * args.C)
+        else:
+            bs_sample_sz = sample_read_cnt
+            for key, value in sample_read_cnt.items():
+                bs_block_sz [key] = round((value)**(coef))
     else:
         bs_sample_sz = bs_kmer_sum
         mean_bs_kmer_count = np.mean(list(bs_kmer_sum.values()))
@@ -1085,7 +1117,6 @@ def subsample(args):
 
         # Update  coverage and error estimates for subsample
         if input_data == 'reads':
-
 
             # Generate subsample replicates and save to bootstrap directory
             pool_sketch = mp.Pool(n_pool)
@@ -1354,7 +1385,10 @@ def distance(args):
     len_est = dict()
     err_est = dict()
     read_len = dict()
-    theta_est = dict()
+    is_diploid = args.d
+    if is_diploid:
+        theta = dict()
+
     for ref in refs:
         ref_dir = os.path.join(args.library, ref)
         info_file = os.path.join(ref_dir, ref + '.dat')
@@ -1368,17 +1402,22 @@ def distance(args):
                 len_est[ref] = "NA"
                 err_est[ref] = "NA"
                 read_len[ref] = int(info.split('\n')[3].split('\t')[1])
+                if is_diploid:
+                    theta[ref] = default_theta
             else:
                 cov_est[ref] = "NA"
                 len_est[ref] = int(info.split('\n')[1].split('\t')[1])
                 err_est[ref] = 0
                 read_len[ref] = "NA"
+                if is_diploid:
+                    theta[ref] = default_theta
         else:
             cov_est[ref] = float(info.split('\n')[0].split('\t')[1])
             len_est[ref] = int(info.split('\n')[1].split('\t')[1])
             err_est[ref] = float(info.split('\n')[2].split('\t')[1])
             read_len[ref] = int(info.split('\n')[3].split('\t')[1])
-            theta_est[ref] = float(info.split('\n')[4].split('\t')[1])
+            if is_diploid:
+                theta[ref] = float(info.split('\n')[4].split('\t')[1])
 
     # Number of pools and threads for multi-processing
     n_pool_dist = min(args.p, len(refs) ** 2)
@@ -1387,14 +1426,18 @@ def distance(args):
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
 
-    if args.r is not None:
+    if is_diploid:
+        results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, dip_coverage_threshold, args.t, theta))
+                    for r1 in refs for r2 in refs]
+    elif args.r is not None:
         ref_hist=parse_reference(args.r, kl, args.p, args.library)
         results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
                     for r1 in refs for r2 in refs]
     else:
-        results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
-                                                               err_est, read_len, kl, coverage_threshold, args.t, theta_est))
+        results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, coverage_threshold, args.t))
                     for r1 in refs for r2 in refs]
 
 
@@ -1446,6 +1489,11 @@ def query(args):
     len_est = dict()
     err_est = dict()
     read_len = dict()
+    # for DipSkmer exclusively...
+    is_diploid = args.d
+    if is_diploid:
+        theta = dict()
+
     for ref in refs:
         ref_dir = os.path.join(args.library, ref)
         info_file = os.path.join(ref_dir, ref + '.dat')
@@ -1459,16 +1507,24 @@ def query(args):
                 len_est[ref] = "NA"
                 err_est[ref] = "NA"
                 read_len[ref] = int(info.split('\n')[3].split('\t')[1])
+                if is_diploid:
+                    theta[ref] = default_theta
             else:
                 cov_est[ref] = "NA"
                 len_est[ref] = int(info.split('\n')[1].split('\t')[1])
                 err_est[ref] = 0
                 read_len[ref] = "NA"
+                if is_diploid:
+                    theta[ref] = default_theta
+
         else:
             cov_est[ref] = float(info.split('\n')[0].split('\t')[1])
             len_est[ref] = int(info.split('\n')[1].split('\t')[1])
             err_est[ref] = float(info.split('\n')[2].split('\t')[1])
             read_len[ref] = int(info.split('\n')[3].split('\t')[1])
+            if is_diploid:
+                theta[ref] = int(info.split('\n')[4].split('\t')[1])
+            
 
     # Number of pools for multi-processing
     n_pool_dist = min(args.p, len(refs))
@@ -1480,28 +1536,44 @@ def query(args):
     sys.stderr.write('[skmer] Estimating the coverage using {0} processors...\n'.format(args.p))
     #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
     #                                                                         args.p)
-    (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e, args.p, ref_hist)
-    cov_est[sample] = coverage
-    len_est[sample] = genome_length
-    err_est[sample] = error_rate
-    read_len[sample] = read_length
+    if is_diploid:
+        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, 
+                                                                                args.p)
+        cov_est[sample] = coverage
+        len_est[sample] = genome_length
+        err_est[sample] = error_rate
+        read_len[sample] = read_length
+        theta[sample] = theta_val
+    else: 
+        (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e, 
+                                                                                args.p, ref_hist)
+        cov_est[sample] = coverage
+        len_est[sample] = genome_length
+        err_est[sample] = error_rate
+        read_len[sample] = read_length
 
     # Sketching the query genome-skim
     sys.stderr.write('[skmer] Sketching the genome-skim...\n')
     if args.r is not None:
         sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, True)
+    if is_diploid:
+        sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, dip_coverage_threshold, seed, False)
     else:
         sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, False)
 
     # Estimating pair-wise distances
     sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    if args.r is not None:
+    if is_diploid:
+        results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
+                                                               err_est, read_len, kl, dip_coverage_threshold, args.t, theta)) for ref in refs]
+    elif args.r is not None:
         results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t, ref_hist)) for ref in refs]
     else:
         results_dist = [pool_dist.apply_async(estimate_skmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t)) for ref in refs]
+    
     for result in results_dist:
         dist_output = result.get(9999999)
         result_s[dist_output[1]] = dist_output[2]
@@ -1568,7 +1640,7 @@ def main():
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_ref.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data. Runs ReSkmer equations for repeat-aware distances')
     parser_ref.add_argument('-d', action='store_true', 
-                            help='Applies DipSkmer equations for diploid distance equations')
+                            help='Applies DipSkmer equations for diploid distance')
     parser_ref.set_defaults(func=reference)
 
     # Subsample command subparser
@@ -1601,6 +1673,10 @@ def main():
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_bt.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
+    parser_ref.add_argument('-d', action='store_true', 
+                            help='Applies DipSkmer equations for diploid distance')
+    parser_ref.add_argument('-C', type=float, 
+                            help='Specify a subsampling coverage instead of an exponent value')
 
     parser_bt.set_defaults(func=subsample)
    
@@ -1648,6 +1724,8 @@ def main():
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P') 
     parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
+    parser_ref.add_argument('-d', action='store_true', 
+                            help='Applies DipSkmer equations for diploid distance')
     parser_qry.set_defaults(func=query)
 
     # fst command subparser
