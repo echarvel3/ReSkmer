@@ -599,8 +599,11 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
     except OSError as Error:
         if Error.errno != errno.EEXIST:
             raise
-
-    bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1])
+    
+    if sequence.endswith('gz'):
+        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1][:-3])
+    else:
+        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1])
   
     with open(bs_rep, 'w') as fp: 
         subprocess.run(["seqtk", "sample",  "-s", str(seed), sequence, str(bl_sz)], stdout=fp) 
@@ -1003,10 +1006,10 @@ def subsample(args):
     
     if args.C:
         if is_diploid:
-            results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov) + (0.0,))
+            results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov))
                         for seq in sequences]
         else:
-            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist) + (0.0,))
+            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist))
                         for seq in sequences]
     else:    
         results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
@@ -1014,7 +1017,7 @@ def subsample(args):
         
     for result in results_cov:
         if is_diploid:
-            (name, coverage, genome_length, error_rate, read_length, theta_est, rd_cnt) = result.get(9999999)
+            (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
             theta[name] = theta_est
         else:
             (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
@@ -1129,10 +1132,22 @@ def subsample(args):
 
             # Computing coverage, genome length, error rate, and read length of replicates  using reference function
             pool_cov = mp.Pool(n_pool)
-            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
-                       for seq in bs_sequences]
+            
+            
+            if is_diploid:
+                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov))
+                            for seq in sequences]
+            else:
+                results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist))
+                            for seq in sequences]
+            
             for result in results_cov:
-                (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
+                if is_diploid:
+                    (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
+                    theta[name] = theta_est
+                    print(name, coverage, genome_length, error_rate, read_length, theta_est)
+                else:    
+                    (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
                 cov_est[name] = coverage
                 len_est[name] = genome_length
                 err_est[name] = error_rate
@@ -1147,6 +1162,10 @@ def subsample(args):
             if args.r is not None:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
+            elif is_diploid:
+                print("sketching")
+                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
+                                                                    dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
             else:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
@@ -1164,6 +1183,12 @@ def subsample(args):
                 results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
+                                                            for s1 in samples_names for s2 in samples_names]
+            elif is_diploid:
+                print("getting distance")
+                results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
+                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
+                                                            err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
                                                             for s1 in samples_names for s2 in samples_names]
             else:
                 results_dist = [pool_dist.apply_async(estimate_skmer_dist, 
@@ -1192,6 +1217,9 @@ def subsample(args):
             if args.r is not None:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
+            elif is_diploid:
+                results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
+                                                                    dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
             else:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
@@ -1209,6 +1237,11 @@ def subsample(args):
                 results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
+                                                            for s1 in samples_names for s2 in samples_names]
+            elif is_diploid:
+                results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
+                                                      args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
+                                                            err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
                                                             for s1 in samples_names for s2 in samples_names]
             else:
                 results_dist = [pool_dist.apply_async(estimate_skmer_dist, 
@@ -1537,8 +1570,9 @@ def query(args):
     #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
     #                                                                         args.p)
     if is_diploid:
-        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, 
-                                                                                args.p)
+        print("here:")
+        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p)
+        print('end')
         cov_est[sample] = coverage
         len_est[sample] = genome_length
         err_est[sample] = error_rate
@@ -1673,9 +1707,9 @@ def main():
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_bt.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
-    parser_ref.add_argument('-d', action='store_true', 
+    parser_bt.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
-    parser_ref.add_argument('-C', type=float, 
+    parser_bt.add_argument('-C', type=float, 
                             help='Specify a subsampling coverage instead of an exponent value')
 
     parser_bt.set_defaults(func=subsample)
@@ -1724,7 +1758,7 @@ def main():
                             help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                  'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P') 
     parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
-    parser_ref.add_argument('-d', action='store_true', 
+    parser_qry.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
     parser_qry.set_defaults(func=query)
 
