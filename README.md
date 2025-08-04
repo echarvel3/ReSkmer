@@ -1,5 +1,8 @@
 
 DipSkmer: Diploid-Aware Distances
+
+## DipSkmer Github is under construction.
+
 ------------
 ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to obtain more accurate distances by modeling the effect repeats have on the intersection of _k_-mer sets.
 #### Input Spectrum
