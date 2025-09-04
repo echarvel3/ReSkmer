@@ -187,7 +187,7 @@ def estimate_dipskmer_dist_approx(sample_1, sample_2, lib_1, lib_2, ce, le, ee, 
     return sample_1, sample_2, d
 
 
-def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg):
+def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     try:
@@ -1571,7 +1571,7 @@ def query(args):
     #                                                                         args.p)
     if is_diploid:
         print("here:")
-        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p)
+        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p, args.theta)
         print('end')
         cov_est[sample] = coverage
         len_est[sample] = genome_length
@@ -1675,7 +1675,7 @@ def main():
     parser_ref.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data. Runs ReSkmer equations for repeat-aware distances')
     parser_ref.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
-    parser_ref.add_argument('-theta', type=int, help="uses default theta value to compute diploid coverage")
+    parser_ref.add_argument('-theta', type=float, help="uses default theta value to compute diploid coverage")
     parser_ref.set_defaults(func=reference)
 
     # Subsample command subparser
@@ -1761,6 +1761,8 @@ def main():
     parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_qry.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
+    parser_qry.add_argument('-theta', type=float, help="uses default theta value to compute diploid coverage")
+
     parser_qry.set_defaults(func=query)
 
     # fst command subparser
