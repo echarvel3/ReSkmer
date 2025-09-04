@@ -231,7 +231,7 @@ def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
         return sample, cov, g_len, eps, l, theta
 
     ind = min(count.index(max(count[2:])), len(count) - 2)
-    if (ind < 2) and (theta_arg is not None):
+    if (ind < 2) or (theta_arg is not None):
         sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default error rate {0}\n'.format(default_error_rate))
         eps = default_error_rate
