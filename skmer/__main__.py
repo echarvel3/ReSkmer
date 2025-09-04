@@ -187,7 +187,7 @@ def estimate_dipskmer_dist_approx(sample_1, sample_2, lib_1, lib_2, ce, le, ee, 
     return sample_1, sample_2, d
 
 
-def estimate_diploid_cov(sequence, lib, k, e, nth):
+def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     try:
@@ -229,7 +229,7 @@ def estimate_diploid_cov(sequence, lib, k, e, nth):
         return sample, cov, g_len, eps, l, theta
 
     ind = min(count.index(max(count[2:])), len(count) - 2)
-    if ind < 2:
+    if (ind < 2) and (theta_arg is not None):
         sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default error rate {0}\n'.format(default_error_rate))
         eps = default_error_rate
@@ -243,7 +243,7 @@ def estimate_diploid_cov(sequence, lib, k, e, nth):
         if 8 * (2 + ind) * rn > 9 * (1 + ind) * r:
             sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default theta but computing other values {0}\n'.format(default_theta))
-            theta = default_theta
+            theta = default_theta if (theta_arg is None) else theta_arg
             Q = (1-theta)**k
             xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**ind+np.exp(x)) * Q)/((1+ind)* (2* np.exp(x)+(2**ind-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
         else:
@@ -889,7 +889,7 @@ def reference(args):
         pool_cov.join()
     else:
         #TODO: add all estimate cov exceptions...
-        results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.l, args.k, args.e, n_thread_cov))
+        results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.l, args.k, args.e, n_thread_cov, args.theta))
                     for seq in sequences]
         for result in results_cov:
             (name, coverage, genome_length, error_rate, read_length, theta_val) = result.get(9999999)
@@ -1571,7 +1571,7 @@ def query(args):
     #                                                                         args.p)
     if is_diploid:
         print("here:")
-        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p)
+        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p, args.theta)
         print('end')
         cov_est[sample] = coverage
         len_est[sample] = genome_length
@@ -1675,6 +1675,7 @@ def main():
     parser_ref.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data. Runs ReSkmer equations for repeat-aware distances')
     parser_ref.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
+    parser_ref.add_argument('-theta', type=float, help="uses default theta value to compute diploid coverage")
     parser_ref.set_defaults(func=reference)
 
     # Subsample command subparser
@@ -1760,6 +1761,8 @@ def main():
     parser_qry.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
     parser_qry.add_argument('-d', action='store_true', 
                             help='Applies DipSkmer equations for diploid distance')
+    parser_qry.add_argument('-theta', type=float, help="uses default theta value to compute diploid coverage")
+
     parser_qry.set_defaults(func=query)
 
     # fst command subparser
