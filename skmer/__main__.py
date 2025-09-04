@@ -231,18 +231,18 @@ def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
         return sample, cov, g_len, eps, l, theta
 
     ind = min(count.index(max(count[2:])), len(count) - 2)
-    if (ind < 2) or (theta_arg is not None):
+    if (ind < 2):
         sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default error rate {0}\n'.format(default_error_rate))
         eps = default_error_rate
         p0 = np.exp(-k * eps)
         r21 = 1.0 * count[2] / count[1]
         cov = newton(cov_temp_func, 0.05, args=(r21, p0, k, l))
-        theta = default_theta
+        theta = default_theta if (theta_arg is None) else theta_arg
     else:
         r =  count[ind + 1] / count[ind]
         rn =  count[ind + 2] / count[ind+1]
-        if 8 * (2 + ind) * rn > 9 * (1 + ind) * r:
+        if (8 * (2 + ind) * rn > 9 * (1 + ind) * r) or (theta_arg is not None):
             sys.stderr.write('Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
                          'Using default theta but computing other values {0}\n'.format(default_theta))
             theta = default_theta if (theta_arg is None) else theta_arg
