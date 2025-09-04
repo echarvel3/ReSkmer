@@ -67,10 +67,12 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     if gl_1 == "NA" or gl_2 == "NA":
         gl_1 = 1
         gl_2 = 1
-    cov_1 = ce[sample_1]
-    cov_2 = ce[sample_2]
-    eps_1 = ee[sample_1]
-    eps_2 = ee[sample_2]
+    cov_1 = ce[sample_1] if ce[sample_1] != "NA" else 1.0
+    cov_2 = ce[sample_2] if ce[sample_2] != "NA" else 1.0
+
+    eps_1 = ee[sample_1] if ee[sample_1] != "NA" else default_error_rate
+    eps_2 = ee[sample_2] if ee[sample_2] != "NA" else default_error_rate
+
     l_1 = rl[sample_1]
     l_2 = rl[sample_2]
     theta_1 = theta[sample_1]
@@ -122,7 +124,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         else:
             d = 'nan'
     d = 0.0 if float(d) < 0.0 else round(float(d), 6)
-    print(d)
+    print("distance:", sample_1, sample_2, ":", str(d))
     return sample_1, sample_2, d
 
 def estimate_dipskmer_dist_approx(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
@@ -1408,7 +1410,7 @@ def distance(args):
 
     # Making a list of reference samples
     refs = [item for item in os.listdir(args.library) if os.path.isdir(os.path.join(args.library, item))]
-
+ #   print(refs)
     # Initializing distance dataframe
     index = pd.MultiIndex.from_product([refs, refs], names=['sample', 'sample_2'])
     result_df = pd.DataFrame(columns=index)
@@ -1425,6 +1427,7 @@ def distance(args):
     for ref in refs:
         ref_dir = os.path.join(args.library, ref)
         info_file = os.path.join(ref_dir, ref + '.dat')
+#        print(info_file)
         with open(info_file) as f:
             info = f.read()
         cov_value = info.split('\n')[0].split('\t')[1]
@@ -1740,6 +1743,8 @@ def main():
                              help='Max number of processors to use [1-{0}]. '.format(mp.cpu_count()) +
                                   'Default for this machine: {0}'.format(mp.cpu_count()), metavar='P')
     parser_dist.add_argument('-r', help='Path to reference genome, histogram, or repeat spectra data')
+    parser_dist.add_argument('-d', action='store_true',
+                                        help='Applies DipSkmer equations for diploid distance')
     parser_dist.set_defaults(func=distance)
 
     # query command subparser
