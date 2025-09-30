@@ -18,10 +18,10 @@ from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
 import io
 
-from skmer import build_library
-# from skmer import compute_distance  
-# from skmer import subsample
-# from skmer import utils
+from skmer import __version__
+from skmer.estimate_coverage import *
+from skmer.__old_main__ import *
+from skmer.utils import pop
 
 def main():
     # Arguments parser
