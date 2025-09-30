@@ -19,6 +19,7 @@ import multiprocessing as mp
 import io
 
 from skmer import __version__
+from skmer import config
 from skmer.__old_main__ import *
 from skmer.skmer_functions import reference
 from skmer.utils import pop

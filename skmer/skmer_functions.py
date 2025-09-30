@@ -1,3 +1,12 @@
+import os
+import errno
+import fnmatch
+import pandas as pd
+import sys
+
+from skmer.config import *
+from skmer.estimate_params import estimate_cov
+
 def get_samples_from_files(args):
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
