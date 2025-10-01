@@ -13,7 +13,7 @@ from subprocess import call
 from skmer.config import *
 from skmer.estimate_parameters import estimate_cov
 from skmer.estimate_distance import estimate_skmer_dist
-from skmer.reskmer.estimate_distance import estimate_reskmer_dist
+from skmer.reskmer.distance_estimator import estimate_reskmer_dist
 from skmer.reskmer.parse_spectrum import parse_reference
 
 def get_samples_from_files(args):

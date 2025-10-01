@@ -1,0 +1,4 @@
+coverage	np.float64(3.7273227975512824)
+genome_length	1082066
+error_rate	np.float64(0.0037393714673272793)
+read_length	150

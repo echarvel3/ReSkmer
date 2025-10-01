@@ -1,3 +1,12 @@
+import sys
+import numpy as np
+import math
+import os
+import io
+import pandas as pd
+import numpy as np
+from subprocess import call, check_output, STDOUT
+
 def genome_size_correction(ref_hist, ref_names, ref_lengths):
     '''scale repeat spectrum bins by genome size'''
     #TODO: separate correct and smooth functions to increase readability

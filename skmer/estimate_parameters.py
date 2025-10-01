@@ -6,7 +6,7 @@ import errno
 import sys
 import math
 import numpy as np
-from subprocess import check_output, STDOUT
+from subprocess import check_output, STDOUT, run
 
 from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
@@ -14,7 +14,6 @@ from skmer.config import seq_len_threshold, error_rate_threshold
 def count_kmers(sample_dir, sample, sequence, k, nth):
     '''runs jellyfish if jellyfish file does not already exist'''
     #TODO: add alternatives to jellyfish to count k-mers
-    print(str(sample_dir), str(sample), str(sequence), str(k), str(nth))
     mercnt = os.path.join(sample_dir, sample + '.jf')
     histo_file = os.path.join(sample_dir, sample + '.hist')
 
@@ -25,7 +24,7 @@ def count_kmers(sample_dir, sample, sequence, k, nth):
         # NOTE: only works in specific environments? Explore alternative k-mer counters with friendlier gzip reading.
         if sequence.endswith("gz"):
             jellyfish_cmd = ["zcat", sequence, "|", "jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, "/dev/fd/0"]
-            subprocess.run(" ".join(jellyfish_cmd), shell=True, check=True)
+            run(" ".join(jellyfish_cmd), shell=True, check=True)
         else:
             call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, sequence],
                 stderr=open(os.devnull, 'w'))
@@ -34,7 +33,7 @@ def count_kmers(sample_dir, sample, sequence, k, nth):
             f.write(histo_stderr)
         os.remove(mercnt)
     else:  
-        sys.stderr.write('WARNING: {0}.hist already exists. Using existing file.\n'.format(sample))
+        sys.stderr.write('--[!WARNING!] {0}.hist already exists. Using existing file.\n'.format(sample))
         histo_stderr = open(histo_file).read()
     return(histo_stderr)
 

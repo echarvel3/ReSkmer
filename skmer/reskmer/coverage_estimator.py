@@ -1,6 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
+import math
+from scipy.optimize import minimize
+
 def estim_oh(xi, hr, hcount, ref_hist, maxj):
     '''computes L2 error between estimated kmer histogram against the observed histogram (hcount)...'''
     errs = [(hcount[h] - np.dot(ref_hist.iloc[0:maxj,1], 

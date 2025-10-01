@@ -1,3 +1,11 @@
+import os
+import pandas as pd
+import numpy as np
+import math
+from scipy.optimize import brenth
+from subprocess import check_output, STDOUT
+
+
 def get_hist_data(lib, sample):
     '''reads a skim's kmer histogram...'''
 
@@ -100,7 +108,7 @@ def estimate_reskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, c
                 d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
             else:
                 d = 5.0
-        return sample_1, sample_2, d
+        return sample_1, sample_2, round(d, 5)
     
     except Exception as e:
         print(e)

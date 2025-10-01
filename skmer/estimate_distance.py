@@ -1,4 +1,6 @@
-from subprocess import check_output
+import os
+import numpy as np
+from subprocess import check_output, STDOUT
 
 def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran):
     if sample_1 == sample_2 and lib_1 == lib_2:
@@ -24,7 +26,7 @@ def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov
     r_2 = dist_temp_func(cov_2, eps_2, k, l_2, cov_thres)
     wp = r_1[0] * r_2[0] * (gl_1 + gl_2) * 0.5
     zp = sum(r_1) * gl_1 + sum(r_2) * gl_2
-    d = max(0, 1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))
+    d = round(max(0, float(1 - (1.0 * zp * j / (wp * (1 + j))) ** (1.0 / k))), 5)
     if tran:
         if d < 0.75:
             d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
