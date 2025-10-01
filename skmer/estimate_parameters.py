@@ -11,6 +11,11 @@ from subprocess import check_output, STDOUT, run
 from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
 
+def write_error_file(info_file, cov, g_len, eps, l):
+    with open(info_file, mode='w') as f:
+        f.write('coverage\t{0}\n'.format(repr(float(round(cov,5)))) + 'genome_length\t{0}\n'.format(g_len) +
+                'error_rate\t{0}\n'.format(repr(float(round(eps, 5)))) + 'read_length\t{0}\n'.format(l))
+
 def count_kmers(sample_dir, sample, sequence, k, nth):
     '''runs jellyfish if jellyfish file does not already exist'''
     #TODO: add alternatives to jellyfish to count k-mers
@@ -69,7 +74,6 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
     # Does not recalculate histogram if histogram already exists
     histo_stderr = count_kmers(sample_dir, sample, sequence, k, nth)
     # Calculate read stats: 
-    # l: "average read length", max_len: "max read length", tot_len: "sum of all reads lengths", n_reads: "number of reads"
     (l, max_len, tot_len, n_reads) = sequence_stat(sequence)
     
     # if sample is assembly...
@@ -78,9 +82,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
         g_len = tot_len
         eps = 0
         l = "NA"
-        with open(info_file, mode='w') as f:
-            f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                    'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
+        write_error_file(info_file, cov, g_len, eps, l)
         return sample, cov, g_len, eps, l
 
     count = [0]
@@ -94,9 +96,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
         cov = "NA"
         g_len = "NA"
         eps = "NA"
-        with open(info_file, mode='w') as f:
-            f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                    'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
+        write_error_file(info_file, cov, g_len, eps, l)
         return sample, cov, g_len, eps, l
 
     ind = min(count.index(max(count[2:])), len(count) - 2)+1
@@ -132,12 +132,6 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
         cov = "NA"
         g_len = "NA"
         eps = "NA"
-        with open(info_file, mode='w') as f:
-            f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                    'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
-        return sample, cov, g_len, eps, l
 
-    with open(info_file, mode='w') as f:
-        f.write('coverage\t{0}\n'.format(repr(cov)) + 'genome_length\t{0}\n'.format(g_len) +
-                'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l))
+    write_error_file(info_file, cov, g_len, eps, l)
     return sample, cov, g_len, eps, l
