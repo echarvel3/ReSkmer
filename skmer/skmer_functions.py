@@ -16,6 +16,7 @@ from skmer.estimate_parameters import estimate_cov
 from skmer.estimate_distance import estimate_skmer_dist
 from skmer.reskmer.distance_estimator import estimate_reskmer_dist
 from skmer.reskmer.parse_spectrum import parse_reference
+from skmer.subsample.subsample import correction, subsample
 
 def get_samples_from_files(args):
     files_names = [f for f in os.listdir(args.input_dir)
@@ -187,7 +188,6 @@ def reference(args):
     result_mat = result_dfm.pivot(index='sample', columns='sample_2', values='distance')
     result_mat.to_csv(args.o + ".txt", sep='\t', mode='w')
 
-
 def distance(args):
     skmer_ver = assign_skmer_label(args)
     # Loading reference config
@@ -274,7 +274,6 @@ def distance(args):
     result_dfm = pd.melt(result_df, value_name='distance')
     result_mat = result_dfm.pivot(index='sample', columns='sample_2', values='distance')
     result_mat.to_csv(args.o + ".txt", sep='\t', mode='w')
-
 
 def query(args):
     # Loading reference config
