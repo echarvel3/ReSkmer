@@ -78,7 +78,6 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
     histo_stderr = count_kmers(sample_dir, sample, sequence, k, nth)
     # Calculate read stats: 
     (l, max_len, tot_len, n_reads) = sequence_stat(sequence)
-    
     # if sample is assembly...
     if max_len > seq_len_threshold:
         cov = "NA"
@@ -102,7 +101,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
         write_error_file(info_file, cov, g_len, eps, l)
         return sample, cov, g_len, eps, l
 
-    ind = min(count.index(max(count[2:])), len(count) - 2)+1
+    ind = min(count.index(max(count[2:])), len(count) - 2) + (1 if ref_hist is not None else 0)
     # If no reskmer reference
     if (e is not None) and (ref_hist is None):
         eps = e
@@ -127,7 +126,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
             gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
             lam = (np.exp(-gam) * (gam ** ind) / math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
             eps = 1 - (gam / lam) ** (1.0 / k)
-        cov = (1.0 * l / (l - k)) * lam
+            cov = (1.0 * l / (l - k)) * lam
     tot_seq = 1.0 * ksum * l / (l - k)
     g_len = int(tot_seq / cov)
 
