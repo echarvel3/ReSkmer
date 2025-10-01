@@ -1,4 +1,4 @@
-coverage	NA
-genome_length	NA
-error_rate	NA
+coverage	0.507261594659434
+genome_length	999970
+error_rate	np.float64(0.007483928551117236)
 read_length	100
