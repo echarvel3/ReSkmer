@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import errno
 import fnmatch
@@ -5,7 +8,8 @@ import pandas as pd
 import sys
 
 from skmer.config import *
-from skmer.estimate_params import estimate_cov
+from skmer.estimate_parameters import estimate_cov
+from skmer.reskmer.parse_spectrum import parse_reference
 
 def get_samples_from_files(args):
     files_names = [f for f in os.listdir(args.input_dir)
@@ -41,6 +45,7 @@ def assign_skmer_label(args):
     if args.r and args.d:
         raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
     return(skmer_ver)
+
 
 def reference(args):
     # Creating a directory for reference library
@@ -84,7 +89,7 @@ def reference(args):
     ref_hist = parse_reference(args.r, args.k, args.p, args.l) if (skmer_ver == "reskmer") else None
 
     # Computing coverage, genome length, error rate, and read length
-    sys.stderr.write('[skmer] Estimating coverages using {0} processors...\n'.format(n_proc_cov))
+    sys.stderr.write('[{0}] Estimating coverages using {1} processors...\n'.format(skmer_ver, n_proc_cov))
     #pool_cov = mp.Pool(n_pool)
 
     if skmer_ver != "dipskmer":
