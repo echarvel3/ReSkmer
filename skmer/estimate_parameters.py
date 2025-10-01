@@ -12,9 +12,12 @@ from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
 
 def write_error_file(info_file, cov, g_len, eps, l):
+    cov = float(round(cov, 5)) if type(cov) != str else cov
+    eps = float(round(eps, 5)) if type(eps) != str else eps
+
     with open(info_file, mode='w') as f:
-        f.write('coverage\t{0}\n'.format(repr(float(round(cov,5)))) + 'genome_length\t{0}\n'.format(g_len) +
-                'error_rate\t{0}\n'.format(repr(float(round(eps, 5)))) + 'read_length\t{0}\n'.format(l))
+        f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
+                'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
 
 def count_kmers(sample_dir, sample, sequence, k, nth):
     '''runs jellyfish if jellyfish file does not already exist'''
