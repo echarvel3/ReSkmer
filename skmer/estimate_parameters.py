@@ -1,6 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import errno
+import sys
+
 from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 
 def count_kmers(sample_dir, sample, sequence, k, nth):
@@ -15,7 +19,7 @@ def count_kmers(sample_dir, sample, sequence, k, nth):
         mercnt = os.path.join(sample_dir, sample + '.jf')
         # Reads gzipped data
         # NOTE: only works in specific environments? Explore alternative k-mer counters with friendlier gzip reading.
-        if sequence.endswith("gz"):')
+        if sequence.endswith("gz"):
             jellyfish_cmd = ["zcat", sequence, "|", "jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, "/dev/fd/0"]
             subprocess.run(" ".join(jellyfish_cmd), shell=True, check=True)
         else:
