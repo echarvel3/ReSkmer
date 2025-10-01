@@ -12,6 +12,8 @@ from subprocess import call
 
 from skmer.config import *
 from skmer.estimate_parameters import estimate_cov
+from skmer.estimate_distance import estimate_skmer_dist
+from skmer.reskmer.estimate_distance import estimate_reskmer_dist
 from skmer.reskmer.parse_spectrum import parse_reference
 
 def get_samples_from_files(args):
@@ -48,7 +50,6 @@ def assign_skmer_label(args):
     if args.r and args.d:
         raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
     return(skmer_ver)
-
 
 def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
