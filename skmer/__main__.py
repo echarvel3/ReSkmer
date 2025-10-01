@@ -23,11 +23,8 @@ from skmer import config
 #from skmer.__old_main__ import *
 from skmer.skmer_functions import reference, distance, query
 from skmer.utils import pop
+from skmer.subsample.subsample import subsample, correction
 
-def subsample():
-    return
-def correction():
-    return
 
 def main():
     # Arguments parser

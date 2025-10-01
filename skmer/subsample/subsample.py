@@ -1,3 +1,9 @@
+import os
+import fnmatch
+import errno
+import pandas as pd
+import sys
+import multiprocessing as mp
 
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
