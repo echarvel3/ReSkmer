@@ -5,6 +5,8 @@ import pandas as pd
 import sys
 import multiprocessing as mp
 
+from skmer.utils import sequence_stat
+
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
