@@ -10,7 +10,7 @@ from subprocess import check_output, STDOUT, run, call
 
 from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
-from skmer.utils import sequence_stat
+from skmer.utils import sequence_stat, sketch
 
 def write_error_file(info_file, cov, g_len, eps, l):
     cov = float(round(cov, 5)) if type(cov) != str else cov

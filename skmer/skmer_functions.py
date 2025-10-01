@@ -53,30 +53,6 @@ def assign_skmer_label(args):
         raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
     return(skmer_ver)
 
-def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False):
-    sample = os.path.basename(sequence).rsplit('.f', 1)[0]
-    sample_dir = os.path.join(lib, sample)
-    msh = os.path.join(sample_dir, sample)
-    cov = ce[sample]
-    eps = ee[sample]
-    if cov == "NA" and eps == 0:
-        call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh, sequence], stderr=open(
-            os.devnull, 'w'))
-        return
-    elif eps == "NA":
-        call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
-            os.devnull, 'w'))
-        return
-    copy_thres = int(cov / cov_thres) + 1
-    if cov < cov_thres or eps == 0.0 or has_spectrum:
-        # ReSkmer or below Skmer high-cov threshold...
-        call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
-            os.devnull, 'w'))
-    else:
-        # high-coverage Skmer
-        call(["mash", "sketch", "-m", str(copy_thres), "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh,
-              sequence], stderr=open(os.devnull, 'w'))
-    return
 
 def reference(args):
     # Creating a directory for reference library

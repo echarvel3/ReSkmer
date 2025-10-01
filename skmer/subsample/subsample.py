@@ -6,8 +6,7 @@ import sys
 import multiprocessing as mp
 import numpy as np
 
-from skmer.utils import sequence_stat
-from skmer.skmer_functions import sketch
+from skmer.utils import sequence_stat, sketch
 from skmer.config import *
 
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
