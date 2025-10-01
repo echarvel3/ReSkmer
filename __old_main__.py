@@ -189,7 +189,6 @@ def reference(args):
 
 
 def distance(args):
-    skmer_ver = assign_skmer_label(args)
     # Loading reference config
     config_file = os.path.join(args.library, 'CONFIG')
     with open(config_file) as f:
@@ -247,7 +246,7 @@ def distance(args):
     n_pool_dist = min(args.p, len(refs) ** 2)
 
     # Estimating pair-wise distances
-    sys.stderr.write('[{0}] Estimating distances using {1} processors...\n'.format(skmer_ver, n_pool_dist))
+    sys.stderr.write('[skmer] Estimating distances using {0} processors...\n'.format(n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
 
     if is_diploid:
@@ -270,7 +269,7 @@ def distance(args):
         result_df[(dist_output[0], dist_output[1])] = [repr(dist_output[2])]
 
     # Writing distances to file
-    sys.stderr.write('[{0}] Writing to file...\n'.format(skmer_ver))
+    sys.stderr.write('[skmer] Writing to file...\n')
     result_dfm = pd.melt(result_df, value_name='distance')
     result_mat = result_dfm.pivot(index='sample', columns='sample_2', values='distance')
     result_mat.to_csv(args.o + ".txt", sep='\t', mode='w')
@@ -359,7 +358,7 @@ def query(args):
     ref_hist = parse_reference(args.r, kl, args.p, args.library) if args.r else None
 
     # Computing the coverage, genome length, error rate, and read length of query sample
-    sys.stderr.write('[{0}] Estimating the coverage using {1} processors...\n'.format(skmer_ver, args.p))
+    sys.stderr.write('[{0}] Estimating the coverage using {1} processors...\n'.format(args.p, skmer_version))
     #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
     #                                                                         args.p)
     if is_diploid:
@@ -380,7 +379,7 @@ def query(args):
         read_len[sample] = read_length
 
     # Sketching the query genome-skim
-    sys.stderr.write('[{0}] Sketching the genome-skim...\n'.format(skmer_ver))
+    sys.stderr.write('[{0}] Sketching the genome-skim...\n'.format(skmer_version))
     if args.r is not None:
         sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, True)
     if is_diploid:
@@ -389,7 +388,7 @@ def query(args):
         sketch(args.input, os.getcwd(), cov_est, err_est, kl, ss, coverage_threshold, seed, False)
 
     # Estimating pair-wise distances
-    sys.stderr.write('[{0}] Estimating distances using {1} processors...\n'.format(skmer_ver, n_pool_dist))
+    sys.stderr.write('[{0}] Estimating distances using {1} processors...\n'.format(skmer_version, n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
     if is_diploid:
         results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(sample, ref, os.getcwd(), args.library, cov_est, len_est,
@@ -406,7 +405,7 @@ def query(args):
         result_s[dist_output[1]] = dist_output[2]
 
     # Writing distances to file
-    sys.stderr.write('[{0}] Writing to file...\n'.format(skmer_ver))
+    sys.stderr.write('[{0}] Writing to file...\n'.format(skmer_version))
     result_s.sort_values(inplace=True)
     result_sr = result_s.apply(repr)
     result_sr.to_csv('{0}-{1}.txt'.format(args.o, sample.lower()), sep='\t', mode='w')

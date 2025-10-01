@@ -1,4 +1,4 @@
-coverage	4.033331083966132
+coverage	4.03333
 genome_length	999970
-error_rate	np.float64(0.0047088278946192386)
+error_rate	0.00471
 read_length	150

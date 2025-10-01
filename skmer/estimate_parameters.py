@@ -6,7 +6,7 @@ import errno
 import sys
 import math
 import numpy as np
-from subprocess import check_output, STDOUT, run
+from subprocess import check_output, STDOUT, run, call
 
 from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
