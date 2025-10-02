@@ -106,7 +106,7 @@ def subsample(args):
     bs_kmer_sum = dict()
     sample_read_cnt = dict()
     # Exclusively for dipskmer...
-    if is_diploid:
+    if skmer_ver == "dipskmer":
         theta = dict()
 
     # Number of pools and threads for multi-processing
@@ -116,9 +116,8 @@ def subsample(args):
     n_pool_dist = min(args.p, len(sequences) ** 2)
 
     
-
     # Computing coverage, genome length, error rate, read length and k-mer count
-    sys.stderr.write('[skmer] Starting subsampling using {0} processors...\n'.format(n_proc_cov))
+    sys.stderr.write('[{0}] Starting subsampling using {1} processors...\n'.format(skmer_ver, n_proc_cov))
     pool_cov = mp.Pool(n_pool)
     
     results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
@@ -146,7 +145,7 @@ def subsample(args):
 
     
     ### Choose procedure for reads or assemblies ###
-    sys.stderr.write('[skmer] Input processed as {}...\n'.format(input_data))
+    sys.stderr.write('[{0}] Input processed as {1}...\n'.format(skmer_ver, input_data))
 
     # Compute block size
 
@@ -239,7 +238,7 @@ def subsample(args):
                             for seq in sequences]
             
             for result in results_cov:
-                skmer_ver == "dipskmer":
+                if skmer_ver == "dipskmer":
                     (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
                     theta[name] = theta_est
                     print(name, coverage, genome_length, error_rate, read_length, theta_est)
