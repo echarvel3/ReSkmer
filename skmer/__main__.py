@@ -159,9 +159,9 @@ def main():
     parser_bt.add_argument('-r', 
                             help='Path to reference genome, histogram, or repeat spectra data')
     parser_bt.add_argument('-d', action='store_true', 
-                            help='Applies DipSkmer equations for diploid distance')
-    parser_bt.add_argument('-C', type=float, 
-                            help='Specify a subsampling coverage instead of an exponent value')
+                            help='Applies dipskmer equations for diploid distance')
+    parser_bt.add_argument('-theta', type=float, 
+                            help='uses default theta value to compute diploid coverage')
     parser_bt.set_defaults(func=subsample)
    
     # =================================

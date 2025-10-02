@@ -231,7 +231,7 @@ def subsample(args):
             
             
             if skmer_ver == "dipskmer":
-                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov))
+                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, args.theta))
                             for seq in sequences]
             else:
                 results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
