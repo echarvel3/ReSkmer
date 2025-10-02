@@ -1,0 +1,152 @@
+
+def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
+    if cov == "NA":
+        return [1.0, 0]
+    p = np.exp(-k * eps)
+    copy_thres = int(1.0 * cov / (1.0* cov_thres)) + 1
+    lam = 1.0 * cov * (l - k) / l
+    print(cov,eps,cov_thres)
+    if copy_thres == 1 or p == 1:
+        return [1 - np.exp(-lam * p), lam * (1 - p)]
+    else:
+        print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
+        s = [np.exp(-lam*(1-eps)**k) * math.pow(lam*(1-eps)**k, i)/math.factorial(i) for i in range(copy_thres)] 
+        print(1-sum(s))
+        return [1 - sum(s), 0]
+
+
+def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
+    if sample_1 == sample_2 and lib_1 == lib_2:
+        return sample_1, sample_2, 0.0
+    sample_dir_1 = os.path.join(lib_1, sample_1)
+    sample_dir_2 = os.path.join(lib_2, sample_2)
+    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+    gl_1 = le[sample_1]
+    gl_2 = le[sample_2]
+    if gl_1 == "NA" or gl_2 == "NA":
+        gl_1 = 1
+        gl_2 = 1
+    cov_1 = ce[sample_1] if ce[sample_1] != "NA" else 1.0
+    cov_2 = ce[sample_2] if ce[sample_2] != "NA" else 1.0
+
+    eps_1 = ee[sample_1] if ee[sample_1] != "NA" else default_error_rate
+    eps_2 = ee[sample_2] if ee[sample_2] != "NA" else default_error_rate
+
+    l_1 = rl[sample_1]
+    l_2 = rl[sample_2]
+    theta_1 = theta[sample_1]
+    theta_2 = theta[sample_2]
+
+    #print("pars used:", eps_1,eps_2,cov_1,cov_2)
+    r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
+    r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
+    
+    hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+    hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
+    
+    i = j * (usize_1 + usize_2) / (1.0 + j)
+    EI = i / gl_1
+    #print(usize_1, usize_2)
+    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
+    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
+    lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
+    lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
+    #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
+    #psi_2 = 2*lam_2/2*(1-np.power(1-eps_2, k))
+    psi_1 = r_1[1]
+    psi_2 = r_2[1]
+    eta1= r_1[0]
+    eta2= r_2[0]
+    #print("psi1", psi_1, "psi_2", psi_2, "j", j)
+    t = int(1.0 * cov_1 / (1.0* cov_thres)) + 1
+    xi_1 = lam_1 * np.exp(-k*eps_1)
+    xi_2 = lam_2 * np.exp(-k*eps_2)
+    
+    if t > 1:
+        print("printing exact solution, since coverage is high:", cov_1, cov_2)
+        nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
+        numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
+        denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
+        denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+    
+        Q = 1 + numerator / (denom_1 + denom_2)
+        d = 1 - np.power(Q, (6/11 * 1/k))
+    else:
+        numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
+        power = (6/11 * 1/k)
+        denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
+        d = 1 - np.power(numerator/denominator, (6/11 * 1/k))
+
+    if tran or math.isnan(d):
+        if d < 0.75:
+            d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
+        else:
+            d = 'nan'
+    d = 0.0 if float(d) < 0.0 else round(float(d), 6)
+    print("distance:", sample_1, sample_2, ":", str(d))
+    return sample_1, sample_2, d
+
+# NOTE: OBSOLETE
+# def estimate_dipskmer_dist_approx(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
+#     if sample_1 == sample_2 and lib_1 == lib_2:
+#         return sample_1, sample_2, 0.0
+#     sample_dir_1 = os.path.join(lib_1, sample_1)
+#     sample_dir_2 = os.path.join(lib_2, sample_2)
+#     msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
+#     msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
+#     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+#     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+#     gl_1 = le[sample_1]
+#     gl_2 = le[sample_2]
+#     if gl_1 == "NA" or gl_2 == "NA":
+#         gl_1 = 1
+#         gl_2 = 1
+#     cov_1 = ce[sample_1]
+#     cov_2 = ce[sample_2]
+#     eps_1 = ee[sample_1]
+#     eps_2 = ee[sample_2]
+#     l_1 = rl[sample_1]
+#     l_2 = rl[sample_2]
+#     theta_1 = theta[sample_1]
+#     theta_2 = theta[sample_2]
+
+#     #print("pars used:", eps_1,eps_2,cov_1,cov_2)
+#     r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
+#     r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
+    
+#     hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
+#     hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
+    
+#     i = j * (usize_1 + usize_2) / (1.0 + j)
+#     EI = i / gl_1
+#     #print(usize_1, usize_2)
+#     #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
+#     #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
+#     power = (6/11 * 1/k)
+#     lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
+#     lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
+#     #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
+#     #psi_2 = 2*lam_2/2*(1-np.power(1-eps_2, k))
+#     psi_1 = r_1[1]
+#     psi_2 = r_2[1]
+#     eta1= r_1[0]
+#     eta2= r_2[0]
+#     #print("psi1", psi_1, "psi_2", psi_2, "j", j)
+
+#     numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
+#     #4*eta1*eta2*(eta1 + eta2 - 5) + j *((4*eta1-5)*(eta2**2) + 4*(eta1-5)*eta1*eta2+(22-5*eta1)*eta1 + 11*(2*eta2 + psi_1 + psi_2))
+#     denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
+#     #(r_2[0]**2)*(11*(r_1[0]**2)*(j+1) - (18*r_1[0]*(j+1)) + 6*j) + 6*(r_1[0]**2)*j - 6*(3*r_1[0]-4)*r_1[0]*r_2[0]*(j+1)
+#     #print("eta1", r_1[0], "eta2", r_2[0], "int per pos",  EI, "int", i, "num", numerator, "denom", denominator, "pow", power)
+#     d = 1 - np.power(numerator/denominator,power)
+    
+#     if tran or math.isnan(d):
+#         if d < 0.75:
+#             d = max(0, -0.75 * np.log(1 - 4.0 * d / 3.0))
+#         else:
+#             d = 'nan'
+#     print(d)
+#     return sample_1, sample_2, d

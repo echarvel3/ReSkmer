@@ -4,7 +4,7 @@ from subprocess import check_output, STDOUT, call
 from skmer.config import *
 
 def pop(args):
-    return()
+    return
 
 def sequence_stat(sequence):
     total_length = 0
@@ -82,3 +82,14 @@ def assign_skmer_label(args):
     if args.r and args.d:
         raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
     return(skmer_ver)
+
+def write_error_file(info_file, cov, g_len, eps, l, theta = None):
+    cov = float(round(cov, 5)) if type(cov) != str else cov
+    eps = float(round(eps, 5)) if type(eps) != str else eps
+
+    with open(info_file, mode='w') as f:
+        f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
+                'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
+        if theta is not None:
+            theta = float(round(theta, 5)) if type(theta) != str else theta
+            f.write('theta\t{0}\n'.format(theta))

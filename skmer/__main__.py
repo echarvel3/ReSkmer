@@ -3,24 +3,13 @@
 
 import numpy as np
 from numpy import random
-from scipy.optimize import newton, brenth, minimize
-from scipy.stats import poisson
-import math
 import argparse
 import os
-import shutil
-import fnmatch
 import sys
-import errno
-import pandas as pd
-import subprocess
-from subprocess import call, check_output, STDOUT
 import multiprocessing as mp
-import io
 
 from skmer import __version__
 from skmer.skmer_functions import reference, distance, query
-#from skmer.subsample.subsample import subsample, correction
 from skmer.subsample import subsample, correction
 from skmer.utils import pop
 
