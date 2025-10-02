@@ -1,37 +1,4 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
 
-
-import numpy as np
-from numpy import random
-from scipy.optimize import newton, brenth, minimize
-from scipy.stats import poisson
-import math
-import argparse
-import os
-import shutil
-import fnmatch
-import sys
-import errno
-import pandas as pd
-import subprocess
-from subprocess import call, check_output, STDOUT
-import multiprocessing as mp
-import io
-
-__version__ = 'skmer 5.0.0'
-
-# Hard-coded param
-coverage_threshold = 5
-dip_coverage_threshold = 2
-error_rate_threshold = 0.03
-default_theta = 0.005
-seq_len_threshold = 2000
-default_error_rate = 0.01
-
-###########################################
-##                DipSKMER               ##
-###########################################
 def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
     if cov == "NA":
         return [1.0, 0]
@@ -280,11 +247,3 @@ def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
         f.write('coverage\t{0}\n'.format(repr(cov)) + 'genome_length\t{0}\n'.format(g_len) +
                 'error_rate\t{0}\n'.format(repr(eps)) + 'read_length\t{0}\n'.format(l) + 'theta\t{0}\n'.format(repr(theta)))
     return sample, cov, g_len, eps, l, theta
-
-
-
-
-
-
-
-
