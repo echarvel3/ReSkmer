@@ -8,7 +8,7 @@ import multiprocessing as mp
 import numpy as np
 from subprocess import run
 
-from skmer.utils import sequence_stat, sketch
+from skmer.utils import sequence_stat, sketch, write_error_file, assign_skmer_label
 from skmer.estimate_distance import estimate_skmer_dist
 from skmer.estimate_parameters import estimate_cov
 from skmer.config import *
@@ -28,9 +28,7 @@ def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     g_len = ge[sample]
     eps = ee[sample]
     l = le[sample]
-    with open(info_file, mode='w') as f:
-        f.write('coverage\t{0}\n'.format(cov) + 'genome_length\t{0}\n'.format(g_len) +
-                'error_rate\t{0}\n'.format(eps) + 'read_length\t{0}\n'.format(l))
+    write_error_file(info_file, cov, g_len, eps, l)
     return
 
 def estimate_stats(sequence, nth):
@@ -71,6 +69,8 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
 
 def subsample(args):
     # Creating a directory for subsample
+    skmer_ver = assign_skmer_label(args)
+
     try:
         os.makedirs(args.sub)
     except OSError as Error:
@@ -79,12 +79,8 @@ def subsample(args):
     
     # ReSkmer reference processing...
     ref_hist=parse_reference(args.r, args.k, args.p, args.sub) if args.r else None
-    # DipSkmer argument...
-    is_diploid = args.d
 
     # Making a list of sample names
-    formats = ['.fq', '.fastq', '.fa', '.fna', '.fasta']
-    formats += ['.fq.gz', '.fastq.gz', '.fa.gz', '.fna.gz', '.fasta.gz']
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
@@ -109,7 +105,7 @@ def subsample(args):
     read_len = dict()
     bs_kmer_sum = dict()
     sample_read_cnt = dict()
-    # Exclusively for DipSkmer...
+    # Exclusively for dipskmer...
     if is_diploid:
         theta = dict()
 
@@ -125,35 +121,17 @@ def subsample(args):
     sys.stderr.write('[skmer] Starting subsampling using {0} processors...\n'.format(n_proc_cov))
     pool_cov = mp.Pool(n_pool)
     
-    if args.C:
-        if is_diploid:
-            results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov))
-                        for seq in sequences]
-        else:
-            results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist))
-                        for seq in sequences]
-    else:    
-        results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
+    results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
                     for seq in sequences]
         
     for result in results_cov:
-        if is_diploid:
-            (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
-            theta[name] = theta_est
-        else:
-            (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
+        (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
+
         cov_est[name] = coverage
         len_est[name] = genome_length
         err_est[name] = error_rate
         read_len[name] = read_length
-        if args.C:
-            rl_temp = float('nan') if read_len[name] == "NA" else int(read_len[name])
-            cov_temp = float('nan') if cov_est[name] == "NA" else int(cov_est[name])
-            gl_temp = float('nan') if len_est[name] == "NA" else int(len_est[name])
-
-            sample_read_cnt[name] = "NA" if math.isnan((gl_temp * cov_temp) / rl_temp) else round((gl_temp * cov_temp) / rl_temp)
-        else:
-            sample_read_cnt[name] = rd_cnt
+        sample_read_cnt[name] = rd_cnt
         bs_kmer_sum[name] = args.s
     pool_cov.close()
     pool_cov.join()
@@ -182,14 +160,9 @@ def subsample(args):
     asm_sketch_sz = 0
 
     if input_data == 'reads':
-        if args.C:
-            bs_sample_sz = sample_read_cnt
-            for key, value in sample_read_cnt.items():
-                bs_block_sz [key] = round(value / cov_est[name] * args.C)
-        else:
-            bs_sample_sz = sample_read_cnt
-            for key, value in sample_read_cnt.items():
-                bs_block_sz [key] = round((value)**(coef))
+        bs_sample_sz = sample_read_cnt
+        for key, value in sample_read_cnt.items():
+            bs_block_sz [key] = round((value)**(coef))
     else:
         bs_sample_sz = bs_kmer_sum
         mean_bs_kmer_count = np.mean(list(bs_kmer_sum.values()))
@@ -206,7 +179,7 @@ def subsample(args):
     print(args.b)
     for b in range (0, args.b):
 
-        sys.stderr.write('[skmer] Computing replicate {0} using {1} processors...\n'.format(b, n_pool))
+        sys.stderr.write('[{0}] Computing replicate {1} using {2} processors...\n'.format(skmer_ver, b, n_pool))
 
         # Creating replicate directory
         sub_rep = os.path.join(args.sub, "rep" + str(args.i))
@@ -258,7 +231,7 @@ def subsample(args):
             pool_cov = mp.Pool(n_pool)
             
             
-            if is_diploid:
+            if skmer_ver == "dipskmer":
                 results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov))
                             for seq in sequences]
             else:
@@ -266,7 +239,7 @@ def subsample(args):
                             for seq in sequences]
             
             for result in results_cov:
-                if is_diploid:
+                skmer_ver == "dipskmer":
                     (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
                     theta[name] = theta_est
                     print(name, coverage, genome_length, error_rate, read_length, theta_est)
@@ -283,10 +256,10 @@ def subsample(args):
             # Sketching genome-skims
             pool_sketch = mp.Pool(n_pool)
             #reads_sketch_sz = 100000
-            if args.r is not None:
+            if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
-            elif is_diploid:
+            elif skmer_ver == "dipskmer":
                 print("sketching")
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
@@ -303,12 +276,12 @@ def subsample(args):
             # Estimating pair-wise distances
             pool_dist = mp.Pool(n_pool_dist)
 
-            if args.r is not None:
+            if skmer_ver == "reskmer":
                 results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                                                             for s1 in samples_names for s2 in samples_names]
-            elif is_diploid:
+            elif skmer_ver == "dipskmer":
                 print("getting distance")
                 results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
@@ -338,10 +311,10 @@ def subsample(args):
 
             # Sketching genome-skims
             pool_sketch = mp.Pool(n_pool)
-            if args.r is not None:
+            if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
-            elif is_diploid:
+            elif skmer_ver == "dipskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
             else:
@@ -357,12 +330,12 @@ def subsample(args):
 
             # Estimating pair-wise distances
             pool_dist = mp.Pool(n_pool_dist)
-            if args.r is not None:
+            if skmer_ver == "reskmer":
                 results_dist = [pool_dist.apply_async(estimate_reskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                                                             for s1 in samples_names for s2 in samples_names]
-            elif is_diploid:
+            elif skmer_ver == "dipskmer":
                 results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
@@ -380,7 +353,7 @@ def subsample(args):
 
 
         # Writing distances to file
-        sys.stderr.write('[skmer] Writing to file...\n')
+        sys.stderr.write('[{0}] Writing to file...\n'.format(skmer_ver))
         result_dfm = pd.melt(result_df, value_name='distance')
         result_mat = result_dfm.pivot(index='sample', columns='sample_2', values='distance')
         final_path = os.path.join(sub_rep, "dimtrx_rep" + ".txt")
