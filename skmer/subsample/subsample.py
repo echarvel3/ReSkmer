@@ -3,6 +3,7 @@ import fnmatch
 import errno
 import pandas as pd
 import sys
+import math
 import multiprocessing as mp
 import numpy as np
 from subprocess import run
@@ -11,6 +12,7 @@ from skmer.utils import sequence_stat, sketch
 from skmer.estimate_distance import estimate_skmer_dist
 from skmer.estimate_parameters import estimate_cov
 from skmer.config import *
+from skmer.dipskmer import estimate_dipskmer_dist, estimate_diploid_cov
 
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]

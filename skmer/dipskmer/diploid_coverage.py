@@ -1,4 +1,12 @@
+import os
+import errno
+import math
+import numpy as np
+
+from subprocess import run
+
 from skmer.utils import write_error_file, count_kmers, sequence_stat
+from skmer.config import *
 
 def estimate_diploid_cov(sequence, lib, k, e, nth, theta_arg = None):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]

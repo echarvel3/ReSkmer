@@ -1,4 +1,13 @@
 
+import os
+import numpy as np
+import math
+
+from subprocess import check_output, STDOUT
+from scipy.stats import poisson
+
+from skmer.utils import get_hist_data
+
 def dip_dist_temp_func(cov, eps, k, l, cov_thres, theta):
     if cov == "NA":
         return [1.0, 0]

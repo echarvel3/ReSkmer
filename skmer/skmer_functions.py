@@ -13,7 +13,7 @@ from skmer.config import *
 from skmer.estimate_parameters import estimate_cov
 from skmer.utils import get_samples_from_files, write_config_file, assign_skmer_label, sketch
 from skmer.reskmer import parse_reference, estimate_reskmer_dist
-from skmer.dipskmer import estimate_dipskmer_dist
+from skmer.dipskmer import estimate_dipskmer_dist, estimate_diploid_cov
 
 def reference(args):
     # Creating a directory for reference library

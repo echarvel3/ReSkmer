@@ -5,18 +5,7 @@ import math
 from scipy.optimize import brenth
 from subprocess import check_output, STDOUT
 
-
-def get_hist_data(lib, sample):
-    '''reads a skim's kmer histogram...'''
-
-    sample_dir = os.path.join(lib, sample)
-    histo_file = os.path.join(sample_dir, sample + '.hist')
-    ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
-    # sum of all kmers in a histogram
-    ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
-    # count of all unique kmers
-    usum = sum(ref_hist.iloc[:, 1])
-    return ref_hist, ksum, usum
+from skmer.utils import get_hist_data
 
 def estimate_intersection(ref_hist, lam1, lam2, eps1, eps2, eta1, eta2, d, k):
     '''calculates expected size of intersection (exp|AuB|) given sequencing parameters... '''

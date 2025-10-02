@@ -1,6 +1,10 @@
 import os
 import fnmatch
-from subprocess import check_output, STDOUT, call
+import sys
+import pandas as pd
+import numpy as np
+
+from subprocess import check_output, STDOUT, call, run
 from skmer.config import *
 
 def pop(args):
@@ -120,3 +124,17 @@ def count_kmers(sample_dir, sample, sequence, k, nth):
         sys.stderr.write("\033[91m" + '[!WARNING!] {0}.hist already exists. Using existing file.\n'.format(sample) + "\033[0m")
         histo_stderr = open(histo_file).read()
     return(histo_stderr)
+
+def get_hist_data(lib, sample):
+    '''reads a skim's kmer histogram...'''
+
+    sample_dir = os.path.join(lib, sample)
+    histo_file = os.path.join(sample_dir, sample + '.hist')
+    ref_hist = pd.read_csv(histo_file, sep=' ', header=None)
+    # sum of all kmers in a histogram
+    ksum = np.dot(ref_hist.iloc[:, 0], ref_hist.iloc[:, 1])
+    # count of all unique kmers
+    usum = sum(ref_hist.iloc[:, 1])
+    return ref_hist, ksum, usum
+
+
