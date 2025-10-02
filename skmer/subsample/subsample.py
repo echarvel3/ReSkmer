@@ -13,6 +13,7 @@ from skmer.estimate_distance import estimate_skmer_dist
 from skmer.estimate_parameters import estimate_cov
 from skmer.config import *
 from skmer.dipskmer import estimate_dipskmer_dist, estimate_diploid_cov
+from skmer.reskmer import parse_reference, estimate_reskmer_dist
 
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
@@ -232,10 +233,10 @@ def subsample(args):
             
             if skmer_ver == "dipskmer":
                 results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, args.theta))
-                            for seq in sequences]
+                            for seq in bs_sequences]
             else:
                 results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
-                            for seq in sequences]
+                            for seq in bs_sequences]
             
             for result in results_cov:
                 if skmer_ver == "dipskmer":
@@ -257,13 +258,13 @@ def subsample(args):
             #reads_sketch_sz = 100000
             if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
+                                                                    coverage_threshold, rand_seed_list[b], True)) for seq in bs_sequences]
             elif skmer_ver == "dipskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
+                                                                    dip_coverage_threshold, rand_seed_list[b], False)) for seq in bs_sequences]
             else:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
+                                                                    coverage_threshold, rand_seed_list[b], False)) for seq in bs_sequences]
             
             for result in results_sketch:
                 result.get(9999999)

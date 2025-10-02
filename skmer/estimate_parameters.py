@@ -15,6 +15,7 @@ from skmer.utils import sequence_stat, sketch, write_error_file, count_kmers
 
 
 def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
+    print("ESTIMATE COV",sequence, lib, k, e, nth, ref_hist)
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
 
