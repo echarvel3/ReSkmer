@@ -50,7 +50,7 @@ def estimate_stats(sequence, nth):
     return sample, cov, g_len, eps, l, n_reads
 
 def sample_reads(sequence, seed, bl_sz, bs_dir):
-   
+    print(sequence, seed, bl_sz, bs_dir)
     try:
         os.makedirs(bs_dir)
     except OSError as Error:
@@ -241,13 +241,13 @@ def subsample(args):
                 if skmer_ver == "dipskmer":
                     (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
                     theta[name] = theta_est
-                    print(name, coverage, genome_length, error_rate, read_length, theta_est)
                 else:    
                     (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
                 cov_est[name] = coverage
                 len_est[name] = genome_length
                 err_est[name] = error_rate
                 read_len[name] = read_length
+                print(name, coverage, genome_length, error_rate, read_length)
             pool_cov.close()
             pool_cov.join()
 
@@ -259,7 +259,6 @@ def subsample(args):
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
             elif skmer_ver == "dipskmer":
-                print("sketching")
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
             else:
@@ -299,8 +298,9 @@ def subsample(args):
 
         else:
 
-            # Prepare genome-skims directory structure
+            # Prepare genome directory structure
             pool_sketch = mp.Pool(n_pool)
+            print(seq, sub_lib, cov_est, len_est, err_est)
             results_sketch = [pool_sketch.apply_async(create_sketch_dir, args=(seq, sub_lib, cov_est, len_est, err_est, 
                                                                                read_len, args.t)) for seq in sequences]
             pool_sketch.close()
@@ -308,7 +308,7 @@ def subsample(args):
 
 
 
-            # Sketching genome-skims
+            # Sketching genomes
             pool_sketch = mp.Pool(n_pool)
             if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,

@@ -10,6 +10,7 @@ import pandas as pd
 import shutil
 
 from skmer.config import *
+from skmer.estimate_distance import estimate_skmer_dist
 from skmer.estimate_parameters import estimate_cov
 from skmer.utils import get_samples_from_files, write_config_file, assign_skmer_label, sketch
 from skmer.reskmer import parse_reference, estimate_reskmer_dist
