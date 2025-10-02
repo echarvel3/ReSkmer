@@ -5,8 +5,11 @@ import pandas as pd
 import sys
 import multiprocessing as mp
 import numpy as np
+from subprocess import run
 
 from skmer.utils import sequence_stat, sketch
+from skmer.estimate_distance import estimate_skmer_dist
+from skmer.estimate_parameters import estimate_cov
 from skmer.config import *
 
 def create_sketch_dir(sequence, lib, ce, ge, ee, le,  nth):
@@ -60,7 +63,7 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
         bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1])
   
     with open(bs_rep, 'w') as fp: 
-        subprocess.run(["seqtk", "sample",  "-s", str(seed), sequence, str(bl_sz)], stdout=fp) 
+        run(["seqtk", "sample",  "-s", str(seed), sequence, str(bl_sz)], stdout=fp) 
 
     return 
 
@@ -198,12 +201,14 @@ def subsample(args):
 
 
     # Computing replicates
+    print(args.b)
     for b in range (0, args.b):
 
         sys.stderr.write('[skmer] Computing replicate {0} using {1} processors...\n'.format(b, n_pool))
 
         # Creating replicate directory
         sub_rep = os.path.join(args.sub, "rep" + str(args.i))
+        print(sub_rep)
         args.i +=1
         try:
             os.makedirs(sub_rep)
@@ -213,6 +218,7 @@ def subsample(args):
 
         # Creating replicate/library directory
         sub_lib = os.path.join(sub_rep, 'library')
+        print(sub_lib)
         try:
             os.makedirs(sub_lib)
         except OSError as Error:
@@ -251,10 +257,10 @@ def subsample(args):
             
             
             if is_diploid:
-                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov))
+                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov))
                             for seq in sequences]
             else:
-                results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, args.sub, args.k, args.e, n_thread_cov, ref_hist))
+                results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
                             for seq in sequences]
             
             for result in results_cov:
