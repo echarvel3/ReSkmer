@@ -12,9 +12,8 @@ from subprocess import call
 
 from skmer.config import *
 from skmer.estimate_parameters import estimate_cov
-from skmer.estimate_distance import estimate_skmer_dist
-from reskmer import estimate_distance, parse_reference
-from skmer.utils import get_samples_from_files, write_config_file, assign_skmer_label
+from skmer.reskmer import parse_reference, estimate_reskmer_dist
+from skmer.utils import get_samples_from_files, write_config_file, assign_skmer_label, sketch
 
 def reference(args):
     # Creating a directory for reference library

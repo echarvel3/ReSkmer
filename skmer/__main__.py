@@ -20,7 +20,8 @@ import io
 
 from skmer import __version__
 from skmer.skmer_functions import reference, distance, query
-from skmer.subsample.subsample import subsample, correction
+#from skmer.subsample.subsample import subsample, correction
+from skmer.subsample import subsample, correction
 from skmer.utils import pop
 
 def main():

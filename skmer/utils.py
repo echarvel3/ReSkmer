@@ -1,5 +1,7 @@
 import os
+import fnmatch
 from subprocess import check_output, STDOUT, call
+from skmer.config import *
 
 def pop(args):
     return()

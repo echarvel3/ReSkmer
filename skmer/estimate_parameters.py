@@ -8,7 +8,7 @@ import math
 import numpy as np
 from subprocess import check_output, STDOUT, run, call
 
-from skmer.reskmer.coverage_estimator import estimate_cov_with_ref
+from skmer.reskmer.repeat_coverage import estimate_cov_with_ref
 from skmer.config import seq_len_threshold, error_rate_threshold
 from skmer.utils import sequence_stat, sketch
 
@@ -42,7 +42,7 @@ def count_kmers(sample_dir, sample, sequence, k, nth):
             f.write(histo_stderr)
         os.remove(mercnt)
     else:  
-        sys.stderr.write('--[!WARNING!] {0}.hist already exists. Using existing file.\n'.format(sample))
+        sys.stderr.write("\033[91m" + '[!WARNING!] {0}.hist already exists. Using existing file.\n'.format(sample) + "\033[0m")
         histo_stderr = open(histo_file).read()
     return(histo_stderr)
 
@@ -110,7 +110,7 @@ def estimate_cov(sequence, lib, k, e, nth, ref_hist = None):
             gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
             lam = (np.exp(-gam) * (gam ** ind) / math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
             eps = 1 - (gam / lam) ** (1.0 / k)
-            cov = (1.0 * l / (l - k)) * lam
+        cov = (1.0 * l / (l - k)) * lam
     tot_seq = 1.0 * ksum * l / (l - k)
     g_len = int(tot_seq / cov)
 
