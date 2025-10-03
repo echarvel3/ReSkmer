@@ -18,7 +18,7 @@ def xi_function(hrange, count, ref_hist, maxj):
     fxn = (lambda xi : estim_oh(xi, hrange, count, ref_hist, maxj))
     return(fxn)
 
-def estimate_cov_with_ref(ref_hist_df, ksum, count, k, sample, l, e, range_start=None, range_end=None, maxj=None):
+def estimate_cov_with_ref(sample, ref_hist_df, ksum, count, k, e, l):
         '''estimates lambda and epsilon using a repeat spectrum...'''
         # Check if repeat spectrum is one sample (reference assembly) or mutliple (respect)
         if ref_hist_df.shape[1] > 2:
