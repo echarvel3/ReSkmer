@@ -24,11 +24,12 @@ def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
         r =  count[ind + 1] / count[ind]
         rn =  count[ind + 2] / count[ind+1]
         if (8 * (2 + ind) * rn > 9 * (1 + ind) * r) or (theta_arg is not None):
-            sys.stderr.write('[WARNING] Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
-                         'Using default theta but computing other values {0}\n'.format(default_theta))
             theta = default_theta if (theta_arg is None) else theta_arg
             Q = (1-theta)**k
             xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**ind+np.exp(x)) * Q)/((1+ind)* (2* np.exp(x)+(2**ind-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
+            if theta_arg is None:
+                sys.stderr.write('[WARNING] Not enough information to co-estimate coverage, theta, and error rate of {0}; '.format(sample) +
+                         'Using default theta but computing other values {0}\n'.format(default_theta))
         else:
             xi = 1./4 * (3 * (1 + ind) * r - math.sqrt((1 + ind) * r) *math.sqrt(max(0, -8 * (2 + ind) * rn + 9 * (1 + ind) * r)))
             theta = 1 - 2**(1/ k) * ((np.exp(xi) * (-r - ind* r + xi))/( 2**ind *r - 2 * np.exp(xi) * r + 2**ind * ind * r - 2* np.exp(xi) * ind* r - 2**(1 + ind) * xi + 2 * np.exp(xi)* xi))**(1/k) 

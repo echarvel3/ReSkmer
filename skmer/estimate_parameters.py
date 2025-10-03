@@ -55,7 +55,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
         theta = "NA" if (skmer_ver == "dipskmer") else None
         write_error_file(info_file, cov, g_len, eps, l, theta)
         return sample, cov, g_len, eps, l, theta
-    print(skmer_ver)
+    
     if skmer_ver == "dipskmer":
         (eps, lam, theta) = estimate_diploid_cov(sample, count, k, e, l, theta)
     elif skmer_ver == "reskmer":
@@ -65,7 +65,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
     cov = (1.0 * l / (l - k)) * lam
     tot_seq = 1.0 * ksum * l / (l - k)
     g_len = int(tot_seq / cov)
-    print(cov, g_len, eps, lam)
+    
     if eps > error_rate_threshold or eps < 0:
         cov = "NA"
         g_len = "NA"
