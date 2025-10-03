@@ -71,25 +71,6 @@ def reference(args):
         if skmer_ver == "dipskmer":
             theta[name] = theta_val
 
-    # if skmer_ver != "dipskmer":
-    #     results_cov = [estimate_cov(seq, args.l, args.k, args.e, n_thread_cov, ref_hist) for seq in sequences]
-    #     for result in results_cov:
-    #         (name, coverage, genome_length, error_rate, read_length) = result
-    #         cov_est[name] = coverage
-    #         len_est[name] = genome_length
-    #         err_est[name] = error_rate
-    #         read_len[name] = read_length
-
-    # else:
-    #     results_cov = [estimate_diploid_cov(seq, args.l, args.k, args.e, n_thread_cov, args.theta) for seq in sequences]
-    #     for result in results_cov:
-    #         (name, coverage, genome_length, error_rate, read_length, theta_val) = result
-    #         cov_est[name] = coverage
-    #         len_est[name] = genome_length
-    #         err_est[name] = error_rate
-    #         read_len[name] = read_length
-    #         theta[name] = theta_val
-    
     # Sketching genome-skims
     sys.stderr.write('[{0}] Sketching sequences using {1} processors...\n'.format(skmer_ver, n_pool))
     pool_sketch = mp.Pool(n_pool)

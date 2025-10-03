@@ -1,2 +1,2 @@
-from .diploid_coverage import estimate_diploid_cov
+from .diploid_parameters import estimate_diploid_cov
 from .diploid_distance import estimate_dipskmer_dist

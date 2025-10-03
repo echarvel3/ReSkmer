@@ -230,25 +230,35 @@ def subsample(args):
             # Computing coverage, genome length, error rate, and read length of replicates  using reference function
             pool_cov = mp.Pool(n_pool)
             
-            
-            if skmer_ver == "dipskmer":
-                results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, args.theta))
-                            for seq in bs_sequences]
-            else:
-                results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
-                            for seq in bs_sequences]
-            
+            results_cov = [estimate_cov(seq, sub_lib, args.k, args.e, n_thread_cov, skmer_ver, ref_hist, args.theta) for seq in bs_sequences]
+    
             for result in results_cov:
-                if skmer_ver == "dipskmer":
-                    (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
-                    theta[name] = theta_est
-                else:    
-                    (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
+                (name, coverage, genome_length, error_rate, read_length, theta_val) = result
                 cov_est[name] = coverage
                 len_est[name] = genome_length
                 err_est[name] = error_rate
                 read_len[name] = read_length
-                print(name, coverage, genome_length, error_rate, read_length)
+                if skmer_ver == "dipskmer":
+                    theta[name] = theta_val
+            
+            # if skmer_ver == "dipskmer":
+            #     results_cov = [pool_cov.apply_async(estimate_diploid_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, args.theta))
+            #                 for seq in bs_sequences]
+            # else:
+            #     results_cov = [pool_cov.apply_async(estimate_cov, args=(seq, sub_lib, args.k, args.e, n_thread_cov, ref_hist))
+            #                 for seq in bs_sequences]
+            
+            # for result in results_cov:
+            #     if skmer_ver == "dipskmer":
+            #         (name, coverage, genome_length, error_rate, read_length, theta_est) = result.get(9999999)
+            #         theta[name] = theta_est
+            #     else:    
+            #         (name, coverage, genome_length, error_rate, read_length) = result.get(9999999)
+            #     cov_est[name] = coverage
+            #     len_est[name] = genome_length
+            #     err_est[name] = error_rate
+            #     read_len[name] = read_length
+            #     print(name, coverage, genome_length, error_rate, read_length)
             pool_cov.close()
             pool_cov.join()
 
