@@ -10,7 +10,7 @@ from subprocess import run
 from skmer.utils import write_error_file, count_kmers, sequence_stat
 from skmer.config import *
 
-def estimate_diploid_cov(count, k, e, l, theta_arg):
+def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     ind = min(count.index(max(count[2:])), len(count) - 2)
     if (ind < 2):
         eps = e if (e is not None) else default_error_rate
@@ -42,4 +42,4 @@ def estimate_diploid_cov(count, k, e, l, theta_arg):
            lam = count[1]/count[ind] * ( (2 *np.exp(-xi) + (2**ind * np.exp(-2*xi) - 2 * np.exp(-xi))* Q) * (xi**ind) )/(2 * math.factorial(ind) ) + (-1 + np.exp(xi)) * (np.exp(-xi) + np.exp(-2*xi) * Q) * xi
            eps = 1-(xi/lam)**(1/k)
 
-    return sample, lam, eps, theta
+    return eps, lam, theta

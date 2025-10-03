@@ -1,4 +1,5 @@
-    
+import numpy as np
+import math
 
 def estimate_base_cov(sample, count, k, e, l):
     ind = min(count.index(max(count[2:])), len(count) - 2)
@@ -17,5 +18,4 @@ def estimate_base_cov(sample, count, k, e, l):
         gam = 1.0 * (ind + 1) * count[ind + 1] / count[ind]
         lam = (np.exp(-gam) * (gam ** ind) / math.factorial(ind)) * count[1] / count[ind] + gam * (1 - np.exp(-gam))
         eps = 1 - (gam / lam) ** (1.0 / k)
-
-    return lam, eps
+    return eps, lam

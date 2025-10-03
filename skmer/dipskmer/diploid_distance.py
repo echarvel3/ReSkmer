@@ -5,6 +5,7 @@ import math
 
 from subprocess import check_output, STDOUT
 from scipy.stats import poisson
+from skmer.config import *
 
 from skmer.utils import get_hist_data
 
