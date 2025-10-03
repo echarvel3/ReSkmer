@@ -98,7 +98,6 @@ def write_error_file(info_file, cov, g_len, eps, l, theta = None):
             theta = float(round(theta, 5)) if type(theta) != str else theta
             f.write('theta\t{0}\n'.format(theta))
 
-
 def count_kmers(sample_dir, sample, sequence, k, nth):
     '''runs jellyfish if jellyfish file does not already exist'''
     #TODO: add alternatives to jellyfish to count k-mers
@@ -137,4 +136,6 @@ def get_hist_data(lib, sample):
     usum = sum(ref_hist.iloc[:, 1])
     return ref_hist, ksum, usum
 
-
+def cov_temp_func(x, r, p, k, l):
+    lam = x * (1.0 * (l - k)) / l
+    return lam * (p ** 2) * np.exp(-lam * p) - 2 * r * (p * np.exp(-lam * p) + 1 - p)

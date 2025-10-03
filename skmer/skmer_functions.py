@@ -349,3 +349,4 @@ def query(args):
             print('Directory not copied. Error: %s' % e)
 
     shutil.rmtree(sample_dir)
+

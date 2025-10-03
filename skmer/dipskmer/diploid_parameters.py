@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 
 from subprocess import run
 
-from skmer.utils import write_error_file, count_kmers, sequence_stat
+from skmer.utils import write_error_file, count_kmers, sequence_stat, cov_temp_func
 from skmer.config import *
 
 def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
