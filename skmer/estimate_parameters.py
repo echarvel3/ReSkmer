@@ -58,7 +58,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
     
     if skmer_ver == "dipskmer":
         (eps, lam, theta) = estimate_diploid_cov(sample, count, k, e, l, theta)
-    elif (skmer_ver == "reskmer") or (skmer_ver == "reskmer + dipskmer")::
+    elif (skmer_ver == "reskmer") or (skmer_ver == "reskmer + dipskmer"):
         (eps, lam) = estimate_cov_with_ref(sample, ref_hist, ksum, count, k, e, l)
         if (skmer_ver == "reskmer + dipskmer"):
             theta = default_theta if theta is None else theta
