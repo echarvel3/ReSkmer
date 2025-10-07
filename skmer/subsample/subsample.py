@@ -107,7 +107,7 @@ def subsample(args):
     bs_kmer_sum = dict()
     sample_read_cnt = dict()
     # Exclusively for dipskmer...
-    if skmer_ver == "dipskmer":
+    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         theta = dict()
 
     # Number of pools and threads for multi-processing
@@ -238,7 +238,7 @@ def subsample(args):
                 len_est[name] = genome_length
                 err_est[name] = error_rate
                 read_len[name] = read_length
-                if skmer_ver == "dipskmer":
+                if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                     theta[name] = theta_val
             
             # if skmer_ver == "dipskmer":
@@ -269,7 +269,7 @@ def subsample(args):
             if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in bs_sequences]
-            elif skmer_ver == "dipskmer":
+            elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
                                                                     dip_coverage_threshold, rand_seed_list[b], False)) for seq in bs_sequences]
             else:
@@ -290,8 +290,7 @@ def subsample(args):
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                                                             for s1 in samples_names for s2 in samples_names]
-            elif skmer_ver == "dipskmer":
-                print("getting distance")
+            elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                 results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
@@ -324,7 +323,7 @@ def subsample(args):
             if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     coverage_threshold, rand_seed_list[b], True)) for seq in sequences]
-            elif skmer_ver == "dipskmer":
+            elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, asm_sketch_sz,
                                                                     dip_coverage_threshold, rand_seed_list[b], False)) for seq in sequences]
             else:
@@ -345,7 +344,7 @@ def subsample(args):
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                                                             for s1 in samples_names for s2 in samples_names]
-            elif skmer_ver == "dipskmer":
+            elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                 results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, 
                                                       args=(s1, s2, sub_lib, sub_lib, cov_est, len_est,
                                                             err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))

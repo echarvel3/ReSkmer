@@ -246,7 +246,7 @@ def query(args):
     read_len = dict()
     # for DipSkmer exclusively...
     is_diploid = args.d
-    if is_diploid:
+    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer")
         theta = dict()
 
     for ref in refs:
@@ -291,22 +291,16 @@ def query(args):
     sys.stderr.write('[{0}] Estimating the coverage using {1} processors...\n'.format(skmer_ver, args.p))
     #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
     #                                                                         args.p)
-    if is_diploid:
-        print("here:")
-        (dummy, coverage, genome_length, error_rate, read_length, theta_val) = estimate_diploid_cov(args.input, os.getcwd(), kl, args.e, args.p, args.theta)
-        print('end')
-        cov_est[sample] = coverage
-        len_est[sample] = genome_length
-        err_est[sample] = error_rate
-        read_len[sample] = read_length
-        theta[sample] = theta_val
-    else: 
-        (dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e, 
-                                                                                args.p, ref_hist)
-        cov_est[sample] = coverage
-        len_est[sample] = genome_length
-        err_est[sample] = error_rate
-        read_len[sample] = read_length
+    
+    results_cov = estimate_cov(args.input, os.getcwd(), kl, args.e, rgs.p, skmer_ver, ref_hist, args.theta)
+    (name, coverage, genome_length, error_rate, read_length, theta_val) = results_cov
+
+    cov_est[name] = coverage
+    len_est[name] = genome_length
+    err_est[name] = error_rate
+    read_len[name] = read_length
+    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
+        theta[name] = theta_val
 
     # Sketching the query genome-skim
     sys.stderr.write('[{0}] Sketching the genome-skim...\n'.format(skmer_ver))
