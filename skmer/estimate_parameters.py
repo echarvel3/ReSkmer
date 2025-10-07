@@ -10,9 +10,9 @@ from subprocess import check_output, STDOUT, run, call
 
 from skmer.reskmer import estimate_cov_with_ref
 from skmer.dipskmer import estimate_diploid_cov
-from skmer.skmer.base_parameters import estimate_base_cov
+from skmer.skmer import estimate_base_cov
 from skmer.config import seq_len_threshold, error_rate_threshold
-from skmer.utils import sequence_stat, sketch, write_error_file, count_kmers
+from skmer.utils import sequence_stat, write_error_file, count_kmers
 
 def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = None):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
@@ -42,7 +42,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
         g_len = tot_len
         eps = 0
         l = "NA"
-        theta = "NA" if (skmer_ver == "dipskmer") else None
+        theta = "NA" if (skmer_ver == "dipskmer" or skmer_ver == "reskmer + dipskmer") else None
         write_error_file(info_file, cov, g_len, eps, l, theta)
         return (sample, cov, g_len, eps, l, theta)
     
@@ -52,14 +52,16 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
         cov = "NA"
         g_len = "NA"
         eps = "NA"
-        theta = "NA" if (skmer_ver == "dipskmer") else None
+        theta = "NA" if (skmer_ver == "dipskmer" or skmer_ver == "reskmer + dipskmer") else None
         write_error_file(info_file, cov, g_len, eps, l, theta)
         return sample, cov, g_len, eps, l, theta
     
     if skmer_ver == "dipskmer":
         (eps, lam, theta) = estimate_diploid_cov(sample, count, k, e, l, theta)
-    elif skmer_ver == "reskmer":
+    elif (skmer_ver == "reskmer") or (skmer_ver == "reskmer + dipskmer")::
         (eps, lam) = estimate_cov_with_ref(sample, ref_hist, ksum, count, k, e, l)
+        if (skmer_ver == "reskmer + dipskmer"):
+            theta = default_theta if theta is None else theta
     elif skmer_ver == "skmer":
         (eps, lam) = estimate_base_cov(sample, count, k, e, l)
     cov = (1.0 * l / (l - k)) * lam

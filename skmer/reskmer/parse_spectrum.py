@@ -58,9 +58,9 @@ def smooth_repeat_spectrum(ref_hist, ref_names):
                 break
     return(ref_hist)
 
-def parse_reference(reference_path, k, nth, library, correct_bin_size = True, smooth_spectrum = True):
+def parse_reference(reference_path, k, nth, library, skmer_ver, correct_bin_size = True, smooth_spectrum = True):
     '''read either input assembly, histogram, or respect dataframe'''
-    sys.stderr.write('[reskmer] Parsing repeat spectrum with {0} processors...\n'.format(nth))
+    sys.stderr.write('[{0}] Parsing repeat spectrum with {1} processors...\n'.format(skmer_ver, nth))
     ext = reference_path.split('.')[-1]
     ref_hist = None
     # read jellyfish histogram

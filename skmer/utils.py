@@ -84,7 +84,7 @@ def assign_skmer_label(args):
         skmer_ver = "skmer"
 
     if args.r and args.d:
-        raise ValueError('Both diploid and repeat equations cannot be used at the same time! Use either -r or -d flags.')
+        skmer_ver = "reskmer + dipskmer"
     return(skmer_ver)
 
 def write_error_file(info_file, cov, g_len, eps, l, theta = None):

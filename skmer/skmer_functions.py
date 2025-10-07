@@ -9,11 +9,12 @@ import pandas as pd
 import shutil
 
 from skmer.config import *
-from skmer.estimate_distance import estimate_skmer_dist
 from skmer.estimate_parameters import estimate_cov
 from skmer.utils import get_samples_from_files, write_config_file, assign_skmer_label, sketch
 from skmer.reskmer import parse_reference, estimate_reskmer_dist
 from skmer.dipskmer import estimate_dipskmer_dist
+from skmer.skmer import estimate_skmer_dist
+
 
 def reference(args):
     # assigns algorithm 
@@ -45,7 +46,7 @@ def reference(args):
     err_est = dict()
     read_len = dict()
     # Initialize theta for dipskmer exclusively...
-    if skmer_ver == "dipskmer":
+    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         theta = dict()
 
     # Number of pools and threads for multi-processing
@@ -55,7 +56,7 @@ def reference(args):
     n_pool_dist = min(args.p, len(sequences) ** 2)
 
     # If repeat-spectrum is provided, read reference
-    ref_hist = parse_reference(args.r, args.k, args.p, args.l) if (skmer_ver == "reskmer") else None
+    ref_hist = parse_reference(args.r, args.k, args.p, args.l, skmer_ver) if (skmer_ver == "reskmer" or skmer_ver == "reskmer + dipskmer") else None
 
     # Computing coverage, genome length, error rate, and read length
     sys.stderr.write('[{0}] Estimating coverages using {1} processors...\n'.format(skmer_ver, n_proc_cov))
@@ -68,17 +69,17 @@ def reference(args):
         len_est[name] = genome_length
         err_est[name] = error_rate
         read_len[name] = read_length
-        if skmer_ver == "dipskmer":
+        if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
             theta[name] = theta_val
 
     # Sketching genome-skims
     sys.stderr.write('[{0}] Sketching sequences using {1} processors...\n'.format(skmer_ver, n_pool))
     pool_sketch = mp.Pool(n_pool)
 
-    if skmer_ver == "reskmer":
+    if (skmer_ver == "reskmer"):
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
                                                             coverage_threshold, args.S, True)) for seq in sequences]
-    elif skmer_ver == "dipskmer":
+    elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
                                                             dip_coverage_threshold, args.S, False)) for seq in sequences]
     else:
@@ -93,11 +94,11 @@ def reference(args):
     # Estimating pair-wise distances
     sys.stderr.write('[{0}] Estimating distances using {1} processors...\n'.format(skmer_ver, n_pool_dist))
     pool_dist = mp.Pool(n_pool_dist)
-    if skmer_ver == "reskmer":
+    if (skmer_ver == "reskmer"):
         results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
                                                                err_est, read_len, args.k, coverage_threshold, args.t, ref_hist))
                     for s1 in samples_names for s2 in samples_names]
-    elif skmer_ver == "dipskmer":
+    elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         results_dist = [pool_dist.apply_async(estimate_dipskmer_dist, args=(s1, s2, args.l, args.l, cov_est, len_est,
                                                                err_est, read_len, args.k, dip_coverage_threshold, args.t, theta))
                     for s1 in samples_names for s2 in samples_names]
