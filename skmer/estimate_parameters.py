@@ -11,7 +11,7 @@ from subprocess import check_output, STDOUT, run, call
 from skmer.reskmer import estimate_cov_with_ref
 from skmer.dipskmer import estimate_diploid_cov
 from skmer.skmer import estimate_base_cov
-from skmer.config import seq_len_threshold, error_rate_threshold
+from skmer.config import *
 from skmer.utils import sequence_stat, write_error_file, count_kmers
 
 def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = None):

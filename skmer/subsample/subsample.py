@@ -79,7 +79,7 @@ def subsample(args):
             raise
     
     # ReSkmer reference processing...
-    ref_hist=parse_reference(args.r, args.k, args.p, args.sub) if args.r else None
+    ref_hist=parse_reference(args.r, args.k, args.p, args.sub, skmer_ver) if args.r else None
 
     # Making a list of sample names
     files_names = [f for f in os.listdir(args.input_dir)

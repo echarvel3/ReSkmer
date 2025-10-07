@@ -246,7 +246,7 @@ def query(args):
     read_len = dict()
     # for DipSkmer exclusively...
     is_diploid = args.d
-    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer")
+    if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         theta = dict()
 
     for ref in refs:
