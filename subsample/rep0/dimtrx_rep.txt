@@ -1,3 +1,0 @@
-sample	diploid_4.1	diploid_4.2
-diploid_4.1	0.0	0.019378
-diploid_4.2	0.019378	0.0

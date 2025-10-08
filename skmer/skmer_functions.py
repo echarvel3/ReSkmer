@@ -185,7 +185,7 @@ def distance(args):
                                                                err_est, read_len, kl, dip_coverage_threshold, args.t, theta))
                     for r1 in refs for r2 in refs]
     elif args.r is not None:
-        ref_hist=parse_reference(args.r, kl, args.p, args.library)
+        ref_hist=parse_reference(args.r, kl, args.p, args.library, skmer_ver)
         results_dist = [pool_dist.apply_async(estimate_reskmer_dist, args=(r1, r2, args.library, args.library, cov_est, len_est,
                                                                err_est, read_len, kl, coverage_threshold, args.t, ref_hist))
                     for r1 in refs for r2 in refs]
@@ -285,14 +285,14 @@ def query(args):
     n_pool_dist = min(args.p, len(refs))
 
     # Processing Reference Histogram
-    ref_hist = parse_reference(args.r, kl, args.p, args.library) if args.r else None
+    ref_hist = parse_reference(args.r, kl, args.p, args.library, skmer_ver) if args.r else None
 
     # Computing the coverage, genome length, error rate, and read length of query sample
     sys.stderr.write('[{0}] Estimating the coverage using {1} processors...\n'.format(skmer_ver, args.p))
     #(dummy, coverage, genome_length, error_rate, read_length) = estimate_cov(args.input, os.getcwd(), kl, args.e,
     #                                                                         args.p)
     
-    results_cov = estimate_cov(args.input, os.getcwd(), kl, args.e, rgs.p, skmer_ver, ref_hist, args.theta)
+    results_cov = estimate_cov(args.input, os.getcwd(), kl, args.e, args.p, skmer_ver, ref_hist, args.theta)
     (name, coverage, genome_length, error_rate, read_length, theta_val) = results_cov
 
     cov_est[name] = coverage
