@@ -5,11 +5,11 @@ import os
 import io
 import pandas as pd
 import numpy as np
+from numpy import random
 from subprocess import call, check_output, STDOUT
 
 def genome_size_correction(ref_hist, ref_names, ref_lengths):
     '''scale repeat spectrum bins by genome size'''
-    #TODO: separate correct and smooth functions to increase readability
     for sample in ref_names:
         genome_length = ref_lengths[sample].loc['genome_length']
         ksum = np.dot(ref_hist.iloc[:, 0], ref_hist[sample])

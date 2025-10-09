@@ -22,8 +22,13 @@ def xi_function(hrange, count, ref_hist, maxj):
 def estimate_cov_with_ref(sample, ref_hist_df, ksum, count, k, e, l):
         '''estimates lambda and epsilon using a repeat spectrum...'''
         # Check if repeat spectrum is one sample (reference assembly) or mutliple (respect)
+        
         if ref_hist_df.shape[1] > 2:
-            ref_hist = ref_hist_df[[0, sample]]
+            try:
+                ref_hist = ref_hist_df[[0, sample]]
+            except KeyError:
+                print("[!WARNING!] {0} not found in estimated spectra file".format(sample))
+                return(-1, 1)
         elif ref_hist_df.shape[1] == 2:
             ref_hist = ref_hist_df
 
