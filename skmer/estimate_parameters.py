@@ -9,7 +9,7 @@ import numpy as np
 from subprocess import check_output, STDOUT, run, call
 
 from skmer.reskmer import estimate_cov_with_ref
-from skmer.dipskmer import estimate_diploid_cov
+from skmer.dipskmer import estimate_diploid_cov, estimate_theta_from_ref
 from skmer.skmer import estimate_base_cov
 from skmer.config import *
 from skmer.utils import sequence_stat, write_error_file, count_kmers
@@ -61,8 +61,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
     elif (skmer_ver == "reskmer") or (skmer_ver == "reskmer + dipskmer"):
         (eps, lam) = estimate_cov_with_ref(sample, ref_hist, ksum, count, k, e, l)
         if (skmer_ver == "reskmer + dipskmer"):
-            lam = lam / 2.0
-            theta = default_theta if theta is None else theta
+            theta = estimate_theta_from_ref(lam/2.0, eps, k) if theta is None else theta
     elif skmer_ver == "skmer":
         (eps, lam) = estimate_base_cov(sample, count, k, e, l)
     cov = (1.0 * l / (l - k)) * lam

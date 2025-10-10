@@ -39,8 +39,8 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     if gl_1 == "NA" or gl_2 == "NA":
         gl_1 = 1
         gl_2 = 1
-    cov_1 = ce[sample_1] if ce[sample_1] != "NA" else 1.0
-    cov_2 = ce[sample_2] if ce[sample_2] != "NA" else 1.0
+    cov_1 = ce[sample_1]/2.0 if ce[sample_1] != "NA" else 1.0
+    cov_2 = ce[sample_2]/2.0 if ce[sample_2] != "NA" else 1.0
 
     eps_1 = ee[sample_1] if ee[sample_1] != "NA" else default_error_rate
     eps_2 = ee[sample_2] if ee[sample_2] != "NA" else default_error_rate

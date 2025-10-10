@@ -68,6 +68,7 @@ def parse_reference(reference_path, k, nth, library, skmer_ver, correct_bin_size
         ref_hist = pd.read_csv(reference_path, sep = ' ', header = None)
     # read inferred repeat spectrum (respect)
     elif (ext == 'txt'):
+        #TODO: verify that input file is correct
         # reads respect tsv: gets sample names, genome lengths, and repeat spectrum
         ref_hist = pd.read_csv(reference_path, sep='\t', header = 0)
         ref_names = pd.Series([x.rsplit('.', 1)[0] for x in ref_hist.pop('sample')])

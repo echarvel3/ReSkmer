@@ -10,6 +10,14 @@ from subprocess import run
 from skmer.utils import write_error_file, count_kmers, sequence_stat, cov_temp_func
 from skmer.config import *
 
+def estimate_theta_from_ref(eps, lam, k):
+    try:
+        xi = lam * (1-eps)**k
+        theta = 1 - 2**(1/ k) * ((np.exp(xi) * (-r - ind* r + xi))/( 2**ind *r - 2 * np.exp(xi) * r + 2**ind * ind * r - 2* np.exp(xi) * ind* r - 2**(1 + ind) * xi + 2 * np.exp(xi)* xi))**(1/k)
+    except:
+        theta = default_theta
+    return(theta)
+
 def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     ind = min(count.index(max(count[2:])), len(count) - 2)
     if (ind < 2):
@@ -43,4 +51,4 @@ def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
            lam = count[1]/count[ind] * ( (2 *np.exp(-xi) + (2**ind * np.exp(-2*xi) - 2 * np.exp(-xi))* Q) * (xi**ind) )/(2 * math.factorial(ind) ) + (-1 + np.exp(xi)) * (np.exp(-xi) + np.exp(-2*xi) * Q) * xi
            eps = 1-(xi/lam)**(1/k)
 
-    return eps, lam, theta
+    return eps, lam*2.0, theta
