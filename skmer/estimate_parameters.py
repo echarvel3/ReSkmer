@@ -61,7 +61,7 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
     elif (skmer_ver == "reskmer") or (skmer_ver == "reskmer + dipskmer"):
         (eps, lam) = estimate_cov_with_ref(sample, ref_hist, ksum, count, k, e, l)
         if (skmer_ver == "reskmer + dipskmer"):
-            theta = estimate_theta_from_ref(lam/2.0, eps, k) if theta is None else theta
+            theta = estimate_theta_from_ref(lam/2.0, eps, k, count) if (theta is None) else theta
     elif skmer_ver == "skmer":
         (eps, lam) = estimate_base_cov(sample, count, k, e, l)
     cov = (1.0 * l / (l - k)) * lam

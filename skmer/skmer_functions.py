@@ -73,7 +73,7 @@ def reference(args):
             theta[name] = theta_val
 
     # Sketching genome-skims
-    sys.stderr.write('[{0}] Sketching sequences using {1} processors...\n'.format(skmer_ver, n_pool))
+    sys.stderr.write('[{0}] Sketching sequences using {1} processors...\n'.format(skmer_ver, n_proc_cov))
     pool_sketch = mp.Pool(n_pool)
 
     if (skmer_ver == "reskmer"):

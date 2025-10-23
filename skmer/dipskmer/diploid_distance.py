@@ -50,7 +50,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     theta_1 = theta[sample_1]
     theta_2 = theta[sample_2]
 
-    #print("pars used:", eps_1,eps_2,cov_1,cov_2)
+    print("pars used:", eps_1,eps_2,cov_1,cov_2)
     r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
     r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
     
@@ -74,20 +74,31 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     t = int(1.0 * cov_1 / (1.0* cov_thres)) + 1
     xi_1 = lam_1 * np.exp(-k*eps_1)
     xi_2 = lam_2 * np.exp(-k*eps_2)
-    
+    print(t)
     if t > 1:
-        print("printing exact solution, since coverage is high:", cov_1, cov_2)
+        print("printing t>1 equation, exact solution, since coverage is high:", cov_1, cov_2)
         nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
-        numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
-        denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
-        denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+#        numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
+        numerator = j*(4*nt(0,1)*(nt(1,0)+nt(2,0)-3)+4*nt(0,2)*nt(1,0) - 5*nt(0,2) - 12*nt(1,0) - 5*nt(2,0)) + 4*nt(1,0) *(nt(1,0) + nt(2,0)) + 4*n(0,2)*nt(1,0)
+        denominator = 4*nt(1,0)*(j*(nt(0,1) + nt(0,2) - 3) + nt(0,1) + nt(0,2)) + nt(2,0)*(j*(4*nt(0,1) - 11*nt(0,2) + 6) + 4*nt(0,1) - 11 * nt(0,2)) + 6 *j*(2*nt(0,2) - 2*nt(0,1))
+#        print(numerator)
+#       denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
+#        print(denom_1)
+#        denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+#        print(denom_2)
+
     
-        Q = 1 + numerator / (denom_1 + denom_2)
+        #Q = 1 + numerator / (denom_1 + denom_2)
+        Q = numerator / denominator
         d = 1 - np.power(Q, (6/11 * 1/k))
     else:
+        print("printing t=1 equation since coverage is low:", cov_1, cov_2)
         numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
+        print(numerator)
         power = (6/11 * 1/k)
+        print(power)
         denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
+        print(denominator)
         d = 1 - np.power(numerator/denominator, (6/11 * 1/k))
 
     if tran or math.isnan(d):

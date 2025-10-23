@@ -10,10 +10,13 @@ from subprocess import run
 from skmer.utils import write_error_file, count_kmers, sequence_stat, cov_temp_func
 from skmer.config import *
 
-def estimate_theta_from_ref(eps, lam, k):
+def estimate_theta_from_ref(lam, eps, k, count):
     try:
+        ind = min(count.index(max(count[2:])), len(count) - 2)
+        r =  count[ind + 1] / count[ind]    
         xi = lam * (1-eps)**k
         theta = 1 - 2**(1/ k) * ((np.exp(xi) * (-r - ind* r + xi))/( 2**ind *r - 2 * np.exp(xi) * r + 2**ind * ind * r - 2* np.exp(xi) * ind* r - 2**(1 + ind) * xi + 2 * np.exp(xi)* xi))**(1/k)
+        #print(ind, r, xi, theta)
     except:
         theta = default_theta
     return(theta)

@@ -1,5 +1,5 @@
 coverage_threshold = 5
-dip_coverage_threshold = 1.8
+dip_coverage_threshold = 2.5
 error_rate_threshold = 0.03
 default_theta = 0.005
 seq_len_threshold = 2000

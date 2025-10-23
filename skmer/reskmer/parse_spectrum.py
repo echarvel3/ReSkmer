@@ -93,8 +93,13 @@ def parse_reference(reference_path, k, nth, library, skmer_ver, correct_bin_size
         sample = os.path.basename(reference_path).rsplit('.f', 1)[0]
         mercnt = os.path.join(library, sample + ".jf")
         call(["jellyfish", "count", "-m", str(k), "-s", "100M", "-t", str(nth), "-C", "-o", mercnt, reference_path], stderr=open(os.devnull, 'w'))
-        histo_stderr = io.StringIO(check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True))
+        histo_stderr = check_output(["jellyfish", "histo", "-h", "1000000",  mercnt], stderr=STDOUT, universal_newlines=True)
         os.remove(mercnt)
-        ref_hist = pd.read_csv(histo_stderr, sep=' ', header=None)
+        ref_hist = pd.read_csv(io.StringIO(histo_stderr), sep=' ', header=None)
+        hist_file = os.path.basename(reference_path).rsplit('.f', 1)[0] + ".hist"
+        print(hist_file)
+        with open(hist_file, "w")  as f:
+            f.write(histo_stderr)
+
 
     return ref_hist
