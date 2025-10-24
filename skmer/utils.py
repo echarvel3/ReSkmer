@@ -27,11 +27,11 @@ def sequence_stat(sequence):
         n_reads += 1
     return int(round(1.0 * total_length / n_reads)), max_length, total_length, n_reads
 
-def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False):
+def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, is_diploid = True):
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     msh = os.path.join(sample_dir, sample)
-    cov = ce[sample]
+    cov = ce[sample]/2.0 if is_diploid else ce[sample]
     eps = ee[sample]
     if cov == "NA" and eps == 0:
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh, sequence], stderr=open(
