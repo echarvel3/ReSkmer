@@ -71,25 +71,36 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     eta1= r_1[0]
     eta2= r_2[0]
     #print("psi1", psi_1, "psi_2", psi_2, "j", j)
-    t = int(1.0 * cov_1 / (1.0* cov_thres)) + 1
     xi_1 = lam_1 * np.exp(-k*eps_1)
     xi_2 = lam_2 * np.exp(-k*eps_2)
+    t = int(1.0 * (xi_1+x1_2)/2.0 / (1.0* cov_thres)) + 1
     print(t)
     if t > 1:
         print("printing t>1 equation, exact solution, since coverage is high:", cov_1, cov_2)
         nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
-        numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
+        #numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
         #numerator = j*(4*nt(0,1)*(nt(1,0)+nt(2,0)-3)+4*nt(0,2)*nt(1,0) - 5*nt(0,2) - 12*nt(1,0) - 5*nt(2,0)) + 4*nt(1,0) *(nt(1,0) + nt(2,0)) + 4*nt(0,2)*nt(1,0)
         #denominator = 4*nt(1,0)*(j*(nt(0,1) + nt(0,2) - 3) + nt(0,1) + nt(0,2)) + nt(2,0)*(j*(4*nt(0,1) - 11*nt(0,2) + 6) + 4*nt(0,1) - 11 * nt(0,2)) + 6 *j*(2*nt(0,2) - 2*nt(0,1))
 #        print(numerator)
-        denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
+        #denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
 #        print(denom_1)
-        denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+        #denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
 #        print(denom_2)
 
     
-        Q = 1 + numerator / (denom_1 + denom_2)
+        #Q = 1 + numerator / (denom_1 + denom_2)
         #Q = numerator / denominator
+
+        numerator = (4* nt(0,2) *nt(1,0) + 4 *nt(0,1) *(nt(1,0) + nt(2,0)) + j* (-5* nt(0,2) - 12* nt(1,0) + 4* nt(0,2)* nt(1,0) - 5 *nt(2,0) + 4* nt(0,1) *(-3 + nt(1,0) + nt(2,0))))
+        denominator = (6* j* (-2* nt(0,1) + nt(0,2)) +  4* (nt(0,1) + nt(0,2) + j *(-3 + nt(0,1) + nt(0,2)))* nt(1,0) + (4* nt(0,1) +  j* (6 + 4* nt(0,1) - 11* nt(0,2)) - 11* nt(0,2))* nt(2,0))
+        Q= numerator/denominator
+        
+        #numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
+        #denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
+        #denom_2 = -4*nt(0,1) * (nt(1,0) + nt(2,0)) + nt(0,2)*(11*nt(2,0) - 4*nt(1,0))
+        #Q = 1 + numerator / (denom_1 + denom_2)
+    
+>>>>>>> 18b7b18 (new equation)
         d = 1 - np.power(Q, (6/11 * 1/k))
     else:
         print("printing t=1 equation since coverage is low:", cov_1, cov_2)
@@ -107,7 +118,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         else:
             d = 'nan'
     d = 0.0 if float(d) < 0.0 else round(float(d), 6)
-    print("distance:", sample_1, sample_2, ":", str(d))
+    print("distance:", sample_1, sample_2, ":", str(d), 'xi:', xi_1, xi_2)
     return sample_1, sample_2, d
 
 # NOTE: OBSOLETE
