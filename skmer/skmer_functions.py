@@ -298,7 +298,8 @@ def query(args):
 
     cov_est[name] = coverage
     len_est[name] = genome_length
-    err_est[name] = error_rat[name] = read_length
+    err_est[name] = error_rate
+    read_len[name] = read_length
     if (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         theta[name] = theta_val
 
