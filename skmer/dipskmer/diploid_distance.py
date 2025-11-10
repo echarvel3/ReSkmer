@@ -40,11 +40,11 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
             return [1.0, 0]
         p = np.exp(-k * eps)
         lam = 1.0 * cov * (l - k) / l
-        xi = lam * np.exp(-k*eps)
+        xi = lam * p
         copy_thres = int(1.0 * xi / (1.0* cov_thres)) + 1
         print(cov,eps,cov_thres)
         if copy_thres == 1 or p == 1:
-            return [1 - np.exp(-lam * p), lam * (1 - p)]
+            return [1 - np.exp(- xi), lam * (1 - p)]
         else:
             print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
             s = [np.exp(-lam*(1-eps)**k) * math.pow(lam*(1-eps)**k, i)/math.factorial(i) for i in range(copy_thres)] 
@@ -85,7 +85,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     n12 = 1 - poisson.cdf(t1-1, 2*xi_1)
     n21 = 1 - poisson.cdf(t2-1, 1*xi_2)
     n22 = 1 - poisson.cdf(t2-1, 2*xi_2)
-    Qn = 1 + 11 * ( j *(n22 + n12) - (1 + j) * n12 * n22 + 2*psi_1 + psi_2)/(6 * j* (2 * n21 + 2 * n11 - n22 - n12) + (j + 1) * (-4 * n21 * n11 - 4 * n22 * n11 - 4*n21 * n12 + 11 * n22 * n12) )
+    Qn = 1 + 11 * ( j *(n22 + n12) - (1 + j) * n12 * n22 + j*(2*psi_1 + 2*psi_2))/(6 * j* (2 * n21 + 2 * n11 - n22 - n12) + (j + 1) * (-4 * n21 * n11 - 4 * n22 * n11 - 4*n21 * n12 + 11 * n22 * n12) )
     d = 1 - np.power(Qn, (6/11 * 1/k))
     if False:
         if t > 1:
@@ -126,6 +126,9 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
             print(power)
             denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
             print(denominator)
+            Q=numerator/denominator
+            #print("   eta:",n11,n12, eta1,eta1*(2-eta1),n21,n22, eta2,eta2*(2-eta2))
+            print("   Q:",Q, Qn)
             d = 1 - np.power(numerator/denominator, (6/11 * 1/k))
 
     if tran or math.isnan(d):
