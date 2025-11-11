@@ -82,7 +82,7 @@ def reference(args):
     elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
         print(skmer_ver)
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
-                                                            dip_coverage_threshold, args.S, False, True, len_est)) for seq in sequences]
+                                                            dip_coverage_threshold, args.S, False, True, read_len)) for seq in sequences]
     else:
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
                                                             coverage_threshold, args.S, False, False)) for seq in sequences]
@@ -295,7 +295,6 @@ def query(args):
     
     results_cov = estimate_cov(args.input, os.getcwd(), kl, args.e, args.p, skmer_ver, ref_hist, args.theta)
     (name, coverage, genome_length, error_rate, read_length, theta_val) = results_cov
-
     cov_est[name] = coverage
     len_est[name] = genome_length
     err_est[name] = error_rate

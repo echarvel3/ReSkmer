@@ -35,6 +35,7 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     cov = ce[sample]/2.0 if is_diploid else ce[sample]
     eps = ee[sample]
     r_len = re[sample]
+    print(r_len)
     print(cov, cov_thres)
     if cov == "NA" and eps == 0:
         print("1")
@@ -49,8 +50,8 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     if r_len is not None:
         lam =  1.0 * cov * (r_len - k) / r_len
         cov = xi = lam * np.exp(-k*eps)
-
     copy_thres = int(cov / cov_thres) + 1
+    print("t:",copy_thres, "cov", xi, cov, "r", r_len)
     if copy_thres ==1 or eps == 0.0 or has_spectrum:
         print("3")
         # ReSkmer or below Skmer high-cov threshold...
