@@ -7,7 +7,7 @@ from subprocess import check_output, STDOUT
 from scipy.stats import poisson
 from skmer.config import *
 
-from skmer.utils import get_hist_data
+from skmer.utils import get_hist_data, check_mash_files
 
 
 def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov_thres, tran, theta):
@@ -15,10 +15,6 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         return sample_1, sample_2, 0.0
     sample_dir_1 = os.path.join(lib_1, sample_1)
     sample_dir_2 = os.path.join(lib_2, sample_2)
-    msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
-    msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
-    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
-    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
     gl_1 = le[sample_1]
     gl_2 = le[sample_2]
     if gl_1 == "NA" or gl_2 == "NA":
@@ -59,11 +55,6 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     hist_1, size_1, usize_1 = get_hist_data(lib_1, sample_1)
     hist_2, size_2, usize_2 = get_hist_data(lib_2, sample_2)
     
-    i = j * (usize_1 + usize_2) / (1.0 + j)
-    EI = i / gl_1
-    #print(usize_1, usize_2)
-    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
-    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
     lam_1 = 1.0 * cov_1 * (l_1 - k) / l_1
     lam_2 = 1.0 * cov_2 * (l_2 - k) / l_2
     #psi_1 = 2*lam_1/2*(1-np.power(1-eps_1, k))
@@ -75,12 +66,27 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     #print("psi1", psi_1, "psi_2", psi_2, "j", j)
     xi_1 = lam_1 * np.exp(-k*eps_1)
     xi_2 = lam_2 * np.exp(-k*eps_2)
-    t = int(1.0 * (xi_1+xi_2)/2.0 / (1.0* cov_thres)) + 1
+    #t = int(1.0 * (xi_1+xi_2)/2.0 / (1.0* cov_thres)) + 1
     t1 = int(1.0 * (xi_1) / (1.0* cov_thres)) + 1
     t2 = int(1.0 * (xi_2) / (1.0* cov_thres)) + 1
-    print("   t: ",t,t1,t2)
+    print("   t: ",t1,t2)
     print("   P: ",psi_1,psi_2)
-    nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
+    msh_1 = check_mash_files(os.path.join(sample_dir_1, sample_1),t1) #os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = check_mash_files(os.path.join(sample_dir_2, sample_2),t2) #os.path.join(sample_dir_2, sample_2 + ".msh")
+    print("Sketches:\n%s\n%s" %(msh_1,msh_2))
+    if msh_1 is None :
+        raise FileNotFoundError(msh_1)
+    if msh_2 is None:
+        raise FileNotFoundError(msh_2)
+    dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+    j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
+    #nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
+    i = j * (usize_1 + usize_2) / (1.0 + j)
+    EI = i / gl_1
+    #print(usize_1, usize_2)
+    #numerator = (11*EI) + (4*r_1[0]*r_2[0] * ( r_1[0] + r_2[0] - 5))
+    #denominator = r_1[0]*r_2[0] * (11*r_1[0]*r_2[0] - 18*(r_1[0]+r_2[0]) + 24)
+
     n11 = 1 - poisson.cdf(t1-1, 1*xi_1)
     n12 = 1 - poisson.cdf(t1-1, 2*xi_1)
     n21 = 1 - poisson.cdf(t2-1, 1*xi_2)
