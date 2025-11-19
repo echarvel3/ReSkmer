@@ -71,12 +71,14 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     t2 = int(1.0 * (xi_2) / (1.0* cov_thres)) + 1
     print("   t: ",t1,t2)
     print("   P: ",psi_1,psi_2)
-    msh_1 = check_mash_files(os.path.join(sample_dir_1, sample_1),t1) #os.path.join(sample_dir_1, sample_1 + ".msh")
-    msh_2 = check_mash_files(os.path.join(sample_dir_2, sample_2),t2) #os.path.join(sample_dir_2, sample_2 + ".msh")
+    msh_1 = check_mash_files(os.path.join(sample_dir_1, sample_1 + "t" + str(t1)),t1) #os.path.join(sample_dir_1, sample_1 + ".msh")
+    msh_2 = check_mash_files(os.path.join(sample_dir_2, sample_2 + "t" + str(t2)) ,t2) #os.path.join(sample_dir_2, sample_2 + ".msh")
     print("Sketches:\n%s\n%s" %(msh_1,msh_2))
     if msh_1 is None :
+        print(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
         raise FileNotFoundError(msh_1)
     if msh_2 is None:
+        print(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
         raise FileNotFoundError(msh_2)
     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])

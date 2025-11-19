@@ -34,8 +34,8 @@ def estimate_cov(sequence, lib, k, e, nth, skmer_ver, ref_hist = None, theta = N
         ksum += int(item.split()[0]) * int(item.split()[1])
 
     # Calculates read length statistics 
-    (l, max_len, tot_len, n_reads) = sequence_stat(sequence)
-    #(l, max_len, tot_len, n_reads) = (150, 150, 7000, 70000)
+    #(l, max_len, tot_len, n_reads) = sequence_stat(sequence)
+    (l, max_len, tot_len, n_reads) = (150, 150, 7000, 70000)
     #(l, max_len, tot_len, n_reads) = (100, 100, 7000, 70000)
     # checks if input sequence is an assembly
     if max_len > seq_len_threshold:

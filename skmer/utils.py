@@ -27,15 +27,17 @@ def sequence_stat(sequence):
         n_reads += 1
     return int(round(1.0 * total_length / n_reads)), max_length, total_length, n_reads
 
-def check_mash_files(msh,copy_thres):
-    for msht in [msh,msh + "t%d" %copy_thres]:
-        mshf = msht+".msh"
-        if (os.path.exists(mshf)):
-            mashcounts = run(["mash","info","-c",mshf],capture_output=True, text=True)
-            et = int(mashcounts.stdout.split('\n')[1].split('\t')[1])
-            print("Detected sketch %s with t=%d looking for %d" %(mshf,et,copy_thres))
-            if et == copy_thres:
-                return mshf
+def check_mash_files(msh, copy_thres):
+    #for msht in [msh,msh + "t%d" %copy_thres]:
+    mshf = msh+".msh"
+    print("mshf",mshf)
+    if (os.path.exists(mshf)):
+        mashcounts = run(["mash","info","-c",mshf],capture_output=True, text=True)
+        et = int(mashcounts.stdout.split('\n')[1].split('\t')[1])
+        print("Detected sketch %s with t=%d looking for %d" %(mshf,et,copy_thres))
+        if et == copy_thres:
+            return mshf
+        print("et", et, "copy thres", copy_thres)
     return None
 
 def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, is_diploid = False, re = None):
@@ -45,7 +47,7 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     msh = os.path.join(sample_dir, sample)
     cov = ce[sample]/2.0 if is_diploid else ce[sample]
     eps = ee[sample]
-    r_len = re[sample]
+    r_len = re[sample] if re is not None else None
     print(r_len)
     print(cov, cov_thres)
     if cov == "NA" and eps == 0:
@@ -63,10 +65,12 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
         cov = xi = lam * np.exp(-k*eps)
     copy_thres = int(cov / cov_thres) + 1
     #print("t:",copy_thres, "cov", xi, cov, "r", r_len)
-    if check_mash_files(msh,copy_thres):
+    
+    msh = (msh+ "t%d" %copy_thres) if r_len is not None else (msh)
+    if check_mash_files(msh, copy_thres):
         print("Skipping sketching, as existing sketch seems right" )
         return
-    msh = msh+ "t%d" %copy_thres 
+
     print("sketching infto %s" %msh)
     if copy_thres ==1 or eps == 0.0 or has_spectrum:
         print("3")
