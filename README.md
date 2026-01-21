@@ -52,16 +52,13 @@ Skmer is a command-line tool implemented in python. It runs [Jellyfish][2] and [
 Installation
 ------------
 You can download the github repository and install Skmer using the setup script. 
-1. You need to have python 2.7 or later installed
-2. Install [Jellyfish][2] (v2.2.6 or later), [Mash][3] (v2.3 or later), and [seqtk][5] (v1.3), and add the path to
- their binary to the system path (so you can, e.g., run `jellyfish --version`, `mash --version`, and `seqtk` successfully in the terminal). 
-3. Clone the github repository by running (or you can download the repo)
-```
-    git clone https://github.com/echarvel3/ReSkmer.git
-```
-4. Change to the Skmer directory and run
-```
-    python setup.py install
+1. Conda environment has been included for easy installation: ``` conda env create -n reskmer -f ./data/conda_environment/environment.yml```
+2. Code has been only tested python 3.14, this will be updated in the future.
+3. Alternatively, install dependencies manually:
+   - ```conda install pandas=2.3.3```
+   - ```conda install scipy=1.17```
+   - ```conda install kmer-jellyfish=2.3.1```
+   - ```conda install mash=2.3```
 ```
 
 Using Skmer
