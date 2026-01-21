@@ -3,7 +3,9 @@ ReSkmer: Repeat-Aware Distances
 ------------
 ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to obtain more accurate distances by modeling the effect repeats have on the intersection of _k_-mer sets.
 #### Input Spectrum
-ReSkmer requires a canonical repeat spectrum as an additional input, so that it can model the impact of repeats on the intersection of _k_-mer sets. This repeat-spectrum must be a tab-separated *.hist* file with the first column being the  _k_-mer multiplicity and the second being _k_-mer count, e.g.
+ReSkmer requires a canonical repeat spectrum as an additional input, so that it can model the impact of repeats on the intersection of _k_-mer sets. This spectra can be given in any of three formats: reference genome (.fna, .fa, .fasta) _(spectra is computed internally)_, jellyfish histogram (.hist), or RESPECT output file (.txt).
+
+The repeat spectrum must be a tab-separated *.hist* file with the first column being the  _k_-mer multiplicity and the second being _k_-mer count, e.g.
 ```
 1 53429692
 2 4329784
@@ -19,7 +21,7 @@ jellyfish count -m 31 -s 100M -t 4 -C -o assembly_counts.jf /path/to/assembly.fn
 jellyfish histo -h 1000000  assembly_counts.jf > assembly_counts.hist
         
 ```
-Alternatively, ReSkmer can also be run reference-free by using [Respect][11] to obtain a per-sample estimate of repeat spectra. To use this method, input a **space-separated** *.txt* file with the first column mapping to each sample, the middle columns containing the estimated repeat spectrum, and finally Respect's estimate of genome length.
+Alternatively, ReSkmer can also be run reference-free by using [RESPECT][11] to obtain a per-sample estimate of repeat spectra. To use this method, input a **space-separated** *.txt* file with the first column mapping to each sample, the middle columns containing the estimated repeat spectrum, and finally RESPECT's estimate of genome length.
 ```
 sample           r1         r2        r3-48    r49   r50    genome_length
 sample_1.hist    86843291   3173580   ...      751   2638   102390833
