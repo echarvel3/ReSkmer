@@ -39,6 +39,17 @@ skmer distance library -t -o jc-dist-mat -r /path/to/assembly_counts.hist
 skmer subsample ref_dir -r /path/to/assembly.fna
 ```
 
+Installation
+------------
+You can download the github repository and install Skmer using the setup script. 
+1. Conda environment has been included for easy installation: ``` conda env create -n reskmer -f ./data/conda_environment/environment.yml```
+2. Alternatively, install dependencies manually:
+   - ```conda install pandas=2.3.3```
+   - ```conda install scipy=1.17```
+   - ```conda install kmer-jellyfish=2.3.1```
+   - ```conda install mash=2.3```
+3. Code has been only tested ```python 3.14```, this will be updated in the future.
+
 # Skmer
 Skmer is a fast tool for estimating distances between genomes from low-coverage sequencing reads (genome-skims), without needing any assembly or alignment step. The paper where we have described the methods and tested Skmer on simulated short reads and SRA's from previous sequencing experiments is available online (open access):
   - [Sarmashghi, S., Bohmann, K., P. Gilbert, M. T., Bafna, V., & Mirarab, S. (2019). Skmer: assembly-free and alignment-free sample identification using genome skims. Genome Biology, 20(1), 34. https://doi.org/10.1186/s13059-019-1632-4][1]
@@ -48,18 +59,6 @@ And the paper where we have described the procedure for estimating branch suppor
  - [Eleonora Rachtman, Shahab Sarmashghi, Vineet Bafna, Siavash Mirarab, Quantifying the uncertainty of assembly-free genome-wide distance estimates and phylogenetic relationships using subsampling, Cell Systems, Volume 13, Issue 10, 2022, Pages 817-829.e3, ISSN 2405-4712, https://doi.org/10.1016/j.cels.2022.06.007.][8]
 
 Skmer is a command-line tool implemented in python. It runs [Jellyfish][2] and [Mash][3] internally to efficiently compute k-mer profile of genome-skims and their intersection, and estimates the genomic distances by correcting for the effect of low coverage and sequencing error. Skmer also depends on [seqtk][5] for some FASTQ/A processings. After following the installation steps and going over the usage guide, check out these awesome [tutorials][9] by Siavash Mirarab to learn more about using Skmer and other tools we have developed for genome skimming.
-
-Installation
-------------
-You can download the github repository and install Skmer using the setup script. 
-1. Conda environment has been included for easy installation: ``` conda env create -n reskmer -f ./data/conda_environment/environment.yml```
-2. Code has been only tested python 3.14, this will be updated in the future.
-3. Alternatively, install dependencies manually:
-   - ```conda install pandas=2.3.3```
-   - ```conda install scipy=1.17```
-   - ```conda install kmer-jellyfish=2.3.1```
-   - ```conda install mash=2.3```
-```
 
 Using Skmer
 ------------
@@ -212,7 +211,9 @@ sed -E 's/([:][0-9]+[.][0-9]+)[[]([0-9]+)[]]/\2\1/g' RAxML_MajorityRuleExtendedC
 
 Tutorials
 ---------
-Check out the following [tutorials][9] for more on how to use Skmer and other tools we have developed for different genome skimming applications.
+Check out the following [tutorials][9] for more on how to use Skmer and other tools we have developed for different genome skimming applications. 
+
+<mark>Although no specific **ReSkmer** tutorials have yet been developed, any software dependent on Skmer matrices (e.g., Apples, FastME) may be replaced with ReSkmer distance matrices.</mark>
 
 [1]: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1632-4
 [2]: http://www.genome.umd.edu/jellyfish.html
