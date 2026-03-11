@@ -1,9 +1,14 @@
 
-DipSkmer: Diploid-Aware Distances
+# DipSkmer: Diploid-Aware Distances
 
-## DipSkmer Github is under construction.
+DipSkmer is an update to the Skmer software which models diploidy's effect on the Jaccard Index of _k_-mer sets to calculate nucleotide diveristy within a population.
 
+To use DipSkmer simply add a `-d` flag to the reference, query, or distance commands. To use a standard heterozygosity for parameter estimation, add the flag `-theta`, else DipSkmer will attempt to estimate it on its own (_only recommended for high coverage skims_).
+```
+skmer reference ref_dir -l custom_library_name -d -theta 0.003
+```
 ------------
+# ReSkmer: Repeat-Aware Distances
 ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to obtain more accurate distances by modeling the effect repeats have on the intersection of _k_-mer sets.
 #### Input Spectrum
 ReSkmer requires a canonical repeat spectrum as an additional input, so that it can model the impact of repeats on the intersection of _k_-mer sets. This repeat-spectrum must be a tab-separated *.hist* file with the first column being the  _k_-mer multiplicity and the second being _k_-mer count, e.g.
