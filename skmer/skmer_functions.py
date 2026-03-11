@@ -61,7 +61,7 @@ def reference(args):
     # Computing coverage, genome length, error rate, and read length
     sys.stderr.write('[{0}] Estimating coverages using {1} processors...\n'.format(skmer_ver, n_proc_cov))
 
-    results_cov = [estimate_cov(seq, args.l, args.k, args.e, n_thread_cov, skmer_ver, ref_hist, args.theta) for seq in sequences]
+    results_cov = [estimate_cov(seq, args.l, args.k, args.e, n_proc_cov, skmer_ver, ref_hist, args.theta) for seq in sequences]
     
     for result in results_cov:
         (name, coverage, genome_length, error_rate, read_length, theta_val) = result

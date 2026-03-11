@@ -1,4 +1,5 @@
 import os
+import random
 import fnmatch
 import errno
 import pandas as pd
@@ -6,6 +7,7 @@ import sys
 import math
 import multiprocessing as mp
 import numpy as np
+import pyfastx
 from subprocess import run
 
 from skmer.config import *
@@ -57,16 +59,44 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
     except OSError as Error:
         if Error.errno != errno.EEXIST:
             raise
-    
-    if sequence.endswith('gz'):
-        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1][:-3])
-    else:
-        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1])
-  
-    with open(bs_rep, 'w') as fp: 
-        run(["seqtk", "sample",  "-s", str(seed), sequence, str(bl_sz)], stdout=fp) 
 
-    return 
+    opener = gzip.open if sequence.endswith('gz') else open
+    basename = os.path.split(sequence)[-1]
+    if sequence.endswith('.gz'):
+        basename = basename[:-3]
+    bs_rep = os.path.join(bs_dir, basename)
+
+    # First pass: count total reads
+    with opener(sequence, 'rt') as f:
+        total = sum(1 for _ in f) // 4
+
+    # Reservoir sample read indices
+    random.seed(seed)
+    chosen = set(random.sample(range(total), min(bl_sz, total)))
+
+    # Second pass: write sampled reads
+    with opener(sequence, 'rt') as fin, open(bs_rep, 'w') as fout:
+        for i, lines in enumerate(zip(*[fin]*4)):
+            if i in chosen:
+                fout.writelines(lines)
+
+#def sample_reads(sequence, seed, bl_sz, bs_dir):
+#    print(sequence, seed, bl_sz, bs_dir)
+#    try:
+#        os.makedirs(bs_dir)
+#    except OSError as Error:
+#        if Error.errno != errno.EEXIST:
+#            raise
+#    
+#    if sequence.endswith('gz'):
+#        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1][:-3])
+#    else:
+#        bs_rep = os.path.join(bs_dir, os.path.split(sequence)[-1])
+#  
+#    with open(bs_rep, 'w') as fp: 
+#        run(["seqtk", "sample",  "-s", str(seed), sequence, str(bl_sz)], stdout=fp) 
+#
+#    return 
 
 def subsample(args):
     # Creating a directory for subsample
@@ -84,8 +114,8 @@ def subsample(args):
     # Making a list of sample names
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
+    print(files_names)
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
-
     # Check if refs have duplicate entry
     if len(samples_names) != len(set(samples_names)):
         raise ValueError('Duplicate inputs (possibly same name with different extensions), please change '
@@ -121,11 +151,13 @@ def subsample(args):
     sys.stderr.write('[{0}] Starting subsampling using {1} processors...\n'.format(skmer_ver, n_proc_cov))
     pool_cov = mp.Pool(n_pool)
     
-    results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_thread_cov))
+    results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_proc_cov))
                     for seq in sequences]
-        
+    
+    print("-1")
     for result in results_cov:
         (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
+        print(name, coverage, genome_length, error_rate, read_length, rd_cnt)
 
         cov_est[name] = coverage
         len_est[name] = genome_length
@@ -133,11 +165,13 @@ def subsample(args):
         read_len[name] = read_length
         sample_read_cnt[name] = rd_cnt
         bs_kmer_sum[name] = args.s
+    
+    print("0")
     pool_cov.close()
     pool_cov.join()
     #print(sample_read_cnt)
 
-
+    print("1")
     # Check whether inputs are reads or assemblies
     if "NA" in list(read_len.values()):
         input_data = 'assemblies'
@@ -230,7 +264,7 @@ def subsample(args):
             # Computing coverage, genome length, error rate, and read length of replicates  using reference function
             pool_cov = mp.Pool(n_pool)
             
-            results_cov = [estimate_cov(seq, sub_lib, args.k, args.e, n_thread_cov, skmer_ver, ref_hist, args.theta) for seq in bs_sequences]
+            results_cov = [estimate_cov(seq, sub_lib, args.k, args.e, args.p, skmer_ver, ref_hist, args.theta) for seq in bs_sequences]
     
             for result in results_cov:
                 (name, coverage, genome_length, error_rate, read_length, theta_val) = result

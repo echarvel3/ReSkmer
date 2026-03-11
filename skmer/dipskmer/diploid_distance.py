@@ -76,10 +76,10 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     print("Sketches:\n%s\n%s" %(msh_1,msh_2))
     if msh_1 is None :
         print(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
-        raise FileNotFoundError(msh_1)
+        raise FileNotFoundError(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
     if msh_2 is None:
         print(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
-        raise FileNotFoundError(msh_2)
+        raise FileNotFoundError(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
     #nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)

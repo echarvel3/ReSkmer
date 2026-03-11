@@ -3,6 +3,7 @@ import fnmatch
 import sys
 import pandas as pd
 import numpy as np
+import pyfastx
 
 from subprocess import check_output, STDOUT, call, run
 from skmer.config import *
@@ -10,22 +11,42 @@ from skmer.config import *
 def pop(args):
     return
 
+import pyfastx
+
 def sequence_stat(sequence):
     total_length = 0
     n_reads = 0
     max_length = 0
-    # TODO: seqtk comp causing slowing issues in some clusters especially with Skmer subsample.
-    # NOTE: potential fix is to replace with "bbduk.sh in=X lhist=X.txt"
-    comp_stdout = check_output(["seqtk", "comp", sequence], stderr=STDOUT, universal_newlines=True)
-    reads_stat = comp_stdout.split('\n')
-    for stat in reads_stat:
-        if not stat.strip():
-            continue
-        read_length = sum([int(x) for x in stat.split('\t')[2:6]])
+
+    fx = pyfastx.Fastx(sequence)  # autodetect fasta/fastq
+    for name, seq, *rest in fx:
+        s = seq.upper()
+        read_length = s.count("A") + s.count("C") + s.count("G") + s.count("T")
         total_length += read_length
         max_length = max(max_length, read_length)
         n_reads += 1
-    return int(round(1.0 * total_length / n_reads)), max_length, total_length, n_reads
+
+    if n_reads == 0:
+        return 0, 0, 0, 0
+    return int(round(total_length / n_reads)), max_length, total_length, n_reads
+
+
+#def sequence_stat(sequence):
+#    total_length = 0
+#    n_reads = 0
+#    max_length = 0
+#    # TODO: seqtk comp causing slowing issues in some clusters especially with Skmer subsample.
+#    # NOTE: potential fix is to replace with "bbduk.sh in=X lhist=X.txt"
+#    comp_stdout = check_output(["seqtk", "comp", sequence], stderr=STDOUT, universal_newlines=True)
+#    reads_stat = comp_stdout.split('\n')
+#    for stat in reads_stat:
+#        if not stat.strip():
+#            continue
+#        read_length = sum([int(x) for x in stat.split('\t')[2:6]])
+#        total_length += read_length
+#        max_length = max(max_length, read_length)
+#        n_reads += 1
+#    return int(round(1.0 * total_length / n_reads)), max_length, total_length, n_reads
 
 def check_mash_files(msh, copy_thres):
     #for msht in [msh,msh + "t%d" %copy_thres]:
