@@ -2,6 +2,7 @@ import numpy as np
 import math
 
 from skmer.utils import cov_temp_func
+from skmer.config import *
 
 def estimate_base_cov(sample, count, k, e, l):
     ind = min(count.index(max(count[2:])), len(count) - 2)

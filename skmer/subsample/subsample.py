@@ -71,7 +71,7 @@ def sample_reads(sequence, seed, bl_sz, bs_dir):
         total = sum(1 for _ in f) // 4
 
     # Reservoir sample read indices
-    random.seed(seed)
+    #random.seed(seed)
     chosen = set(random.sample(range(total), min(bl_sz, total)))
 
     # Second pass: write sampled reads
@@ -256,7 +256,7 @@ def subsample(args):
             pool_sketch = mp.Pool(n_pool)
             results_sketch = [pool_sketch.apply_async(sample_reads, args=(seq, rand_seed_list[b], bs_block_sz[(os.path.split(seq)[-1]).rsplit('.f', 1)[0]], sub_rep)) for seq in sequences]
             for result in results_sketch:
-                result.get(9999999)
+                result.get(int(9999999))
             pool_sketch.close()
             pool_sketch.join()
 
@@ -302,13 +302,13 @@ def subsample(args):
             #reads_sketch_sz = 100000
             if skmer_ver == "reskmer":
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], True)) for seq in bs_sequences]
+                                                                    coverage_threshold, rand_seed_list[b], True, False)) for seq in bs_sequences]
             elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    dip_coverage_threshold, rand_seed_list[b], False)) for seq in bs_sequences]
+                                                                    dip_coverage_threshold, rand_seed_list[b], False, True, read_len)) for seq in bs_sequences]
             else:
                 results_sketch = [pool_sketch.apply_async(sketch, args=(seq, sub_lib, cov_est, err_est, args.k, args.s,
-                                                                    coverage_threshold, rand_seed_list[b], False)) for seq in bs_sequences]
+                                                                    coverage_threshold, rand_seed_list[b], False, False)) for seq in bs_sequences]
             
             for result in results_sketch:
                 result.get(9999999)
@@ -344,7 +344,7 @@ def subsample(args):
 
             # Prepare genome directory structure
             pool_sketch = mp.Pool(n_pool)
-            print(seq, sub_lib, cov_est, len_est, err_est)
+            #print(seq, sub_lib, cov_est, len_est, err_est)
             results_sketch = [pool_sketch.apply_async(create_sketch_dir, args=(seq, sub_lib, cov_est, len_est, err_est, 
                                                                                read_len, args.t)) for seq in sequences]
             pool_sketch.close()

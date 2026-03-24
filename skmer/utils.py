@@ -66,11 +66,13 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     msh = os.path.join(sample_dir, sample)
-    cov = ce[sample]/2.0 if is_diploid else ce[sample]
+    
+    cov = ce[sample]/2.0 if is_diploid and (ce[sample] != 'NA') else ce[sample]
+
     eps = ee[sample]
     r_len = re[sample] if re is not None else None
-    print(r_len)
-    print(cov, cov_thres)
+    #print(r_len)
+    #print(cov, cov_thres)
     if cov == "NA" and eps == 0:
         print("1")
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh, sequence], stderr=open(
@@ -78,6 +80,11 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
         return
     elif eps == "NA":
         print("2")
+        if is_diploid:
+            msh = (msh+ "t1") if r_len is not None else (msh)
+            if check_mash_files(msh, 1):
+                print("Skipping sketching, as existing sketch seems right" )
+                return
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
         return

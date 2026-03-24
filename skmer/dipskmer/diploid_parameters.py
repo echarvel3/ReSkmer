@@ -21,8 +21,22 @@ def estimate_theta_from_ref(lam, eps, k, count):
         theta = default_theta
     return(theta)
 
+def get_theta_arr(i, count):
+    r =  count[i + 1] / count[i]
+    rn =  count[i + 2] / count[i+1]
+    if (8 * (2 + i) * rn > 9 * (1 + i) * r) or (theta_arg is not None):
+        theta = default_theta if (theta_arg is None) else theta_arg
+        Q = (1-theta)**k
+        xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**i+np.exp(x)) * Q)/((1+i)* (2* np.exp(x)+(2**i-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
+
+
 def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     ind = min(count.index(max(count[2:])), len(count) - 2)
+    
+    if False:
+        iters = 30
+        print(np.array([get_theta_arr(x, count) for x in range(iters)]))
+
     if (ind < 2):
         eps = e if (e is not None) else default_error_rate
         theta = default_theta if (theta_arg is None) else theta_arg
@@ -34,8 +48,10 @@ def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     else:
         r =  count[ind + 1] / count[ind]
         rn =  count[ind + 2] / count[ind+1]
+        print(r, rn)
         if (8 * (2 + ind) * rn > 9 * (1 + ind) * r) or (theta_arg is not None):
             theta = default_theta if (theta_arg is None) else theta_arg
+            print(r)
             Q = (1-theta)**k
             xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**ind+np.exp(x)) * Q)/((1+ind)* (2* np.exp(x)+(2**ind-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
             if theta_arg is None:
