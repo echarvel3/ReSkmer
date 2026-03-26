@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from scipy.optimize import newton
 
 from skmer.utils import cov_temp_func
 from skmer.config import *
