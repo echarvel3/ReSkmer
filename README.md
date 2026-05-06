@@ -1,5 +1,9 @@
 
 ReSkmer: Repeat-Aware Distances
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20058489.svg)](https://doi.org/10.5281/zenodo.20058489)
+
+
 ------------
 ReSkmer is an update to the Skmer software which utlizes a genome's _k_-mer repeat spectrum to obtain more accurate distances by modeling the effect repeats have on the intersection of _k_-mer sets.
 #### Input Spectrum
