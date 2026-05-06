@@ -22,7 +22,7 @@ import math
 from  numpy import random
 # import glob
 
-__version__ = 'skmer 4.4.0'
+__version__ = 'reskmer 0.1.0'
 
 # Hard-coded param
 coverage_threshold = 5
