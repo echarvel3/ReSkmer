@@ -5,13 +5,17 @@ import numpy as np
 import math
 from scipy.optimize import minimize
 
+from skmer.config import * 
 
 def estim_oh(xi, hr, hcount, ref_hist, maxj):
     '''computes L2 error between estimated kmer histogram against the observed histogram (hcount)...'''
-    errs = [(hcount[h] - np.dot(ref_hist.iloc[0:maxj,1], 
-                                np.array([np.exp(-j*xi) * np.power(j*xi,h) / math.factorial(h) for j in range(1, maxj+1)]))
-        )/math.sqrt(hcount[h]) for h in hr]
-    err = sum((e ** 2 for e in errs)) /  len(errs)
+    try:
+        errs = [(hcount[h] - np.dot(ref_hist.iloc[0:maxj,1], 
+                                    np.array([np.exp(-j*xi) * np.power(j*xi,h) / math.factorial(h) for j in range(1, maxj+1)]))
+            )/math.sqrt(hcount[h]) for h in hr]
+        err = sum((e ** 2 for e in errs)) /  len(errs)
+    except:
+        err=default_error_rate
     return(err)
 
 def xi_function(hrange, count, ref_hist, maxj):

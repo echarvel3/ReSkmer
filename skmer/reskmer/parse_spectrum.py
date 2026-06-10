@@ -12,7 +12,10 @@ def genome_size_correction(ref_hist, ref_names, ref_lengths):
     '''scale repeat spectrum bins by genome size'''
     for sample in ref_names:
         genome_length = ref_lengths[sample].loc['genome_length']
-        ksum = np.dot(ref_hist.iloc[:, 0], ref_hist[sample])
+        #print(ref_hist.iloc[:, 0])
+        #print(ref_hist[sample])
+        
+        ksum = np.dot(ref_hist.iloc[:, 0], ref_hist[sample].astype('float64'))
 
         if genome_length > ref_hist[sample].iloc[0]:
             # upscales bins (2 to 50) by estimate of genome size
@@ -75,12 +78,13 @@ def parse_reference(reference_path, k, nth, library, skmer_ver, correct_bin_size
 
         ref_lengths = ref_hist.pop('genome_length')
         ref_lengths = pd.concat([ref_lengths], axis = 1).transpose().rename(columns = ref_names)
+        #print(ref_lengths)
 
         ref_hist = ref_hist.transpose()
         ref_hist = ref_hist.rename(columns = ref_names)
         ref_hist = ref_hist.reset_index(drop = True)
         ref_hist = pd.concat([pd.Series([float(x) for x in range(1,ref_hist.shape[0]+1)]), ref_hist], axis = 1)
-        
+        #print(ref_hist)
         if correct_bin_size:
         # scales bins to correct genome size
             ref_hist = genome_size_correction(ref_hist, ref_names, ref_lengths)

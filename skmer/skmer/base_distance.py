@@ -12,6 +12,8 @@ def estimate_skmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, cov
     msh_1 = os.path.join(sample_dir_1, sample_1 + ".msh")
     msh_2 = os.path.join(sample_dir_2, sample_2 + ".msh")
     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
+    mash_dist = float(dist_stderr.split()[2]) 
+  #  return(sample_1, sample_2, mash_dist)
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
     gl_1 = le[sample_1]
     gl_2 = le[sample_2]
