@@ -101,7 +101,7 @@ def parse_reference(reference_path, k, nth, library, skmer_ver, correct_bin_size
         os.remove(mercnt)
         ref_hist = pd.read_csv(io.StringIO(histo_stderr), sep=' ', header=None)
         hist_file = os.path.basename(reference_path).rsplit('.f', 1)[0] + ".hist"
-        print(hist_file)
+        #print(hist_file)
         with open(hist_file, "w")  as f:
             f.write(histo_stderr)
 

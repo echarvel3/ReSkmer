@@ -38,17 +38,17 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         lam = 1.0 * cov * (l - k) / l
         xi = lam * p
         copy_thres = int(1.0 * xi / (1.0* cov_thres)) + 1
-        print(cov,eps,cov_thres)
+        #print(cov,eps,cov_thres)
         if copy_thres == 1 or p == 1:
             return [1 - np.exp(- xi), lam * (1 - p)]
         else:
-            print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
+            #print("cov thresh: ", cov_thres, copy_thres, cov, cov/cov_thres, p)
             s = [np.exp(-lam*(1-eps)**k) * math.pow(lam*(1-eps)**k, i)/math.factorial(i) for i in range(copy_thres)] 
-            print(1-sum(s))
+            #print(1-sum(s))
             return [1 - sum(s), 0]
 
 
-    print("pars used:", eps_1,eps_2,cov_1,cov_2)
+    #print("pars used:", eps_1,eps_2,cov_1,cov_2)
     r_1 = dip_dist_temp_func(cov_1, eps_1, k, l_1, cov_thres, theta_1)
     r_2 = dip_dist_temp_func(cov_2, eps_2, k, l_2, cov_thres, theta_2)
     
@@ -69,16 +69,16 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
     #t = int(1.0 * (xi_1+xi_2)/2.0 / (1.0* cov_thres)) + 1
     t1 = int(1.0 * (xi_1) / (1.0* cov_thres)) + 1
     t2 = int(1.0 * (xi_2) / (1.0* cov_thres)) + 1
-    print("   t: ",t1,t2)
-    print("   P: ",psi_1,psi_2)
+    #print("   t: ",t1,t2)
+    #print("   P: ",psi_1,psi_2)
     msh_1 = check_mash_files(os.path.join(sample_dir_1, sample_1 + "t" + str(t1)),t1) #os.path.join(sample_dir_1, sample_1 + ".msh")
     msh_2 = check_mash_files(os.path.join(sample_dir_2, sample_2 + "t" + str(t2)) ,t2) #os.path.join(sample_dir_2, sample_2 + ".msh")
-    print("Sketches:\n%s\n%s" %(msh_1,msh_2))
+    #print("Sketches:\n%s\n%s" %(msh_1,msh_2))
     if msh_1 is None :
-        print(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
+        #print(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
         raise FileNotFoundError(os.path.join(sample_dir_1, sample_1 + "t" + str(t1), "not found"))
     if msh_2 is None:
-        print(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
+        #print(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
         raise FileNotFoundError(os.path.join(sample_dir_2, sample_2 + "t" + str(t2), "not found"))
     dist_stderr = check_output(["mash", "dist", msh_1, msh_2], stderr=STDOUT, universal_newlines=True)
     j = float(dist_stderr.split()[4].split("/")[0]) / float(dist_stderr.split()[4].split("/")[1])
@@ -100,7 +100,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
             
             nt = lambda x, y : 1 - poisson.cdf(t-1, x*xi_1 + y*xi_2)
 
-            print("printing t>1 equation, exact solution, since coverage is high:", cov_1, cov_2)
+            #print("printing t>1 equation, exact solution, since coverage is high:", cov_1, cov_2)
             #numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
             #numerator = j*(4*nt(0,1)*(nt(1,0)+nt(2,0)-3)+4*nt(0,2)*nt(1,0) - 5*nt(0,2) - 12*nt(1,0) - 5*nt(2,0)) + 4*nt(1,0) *(nt(1,0) + nt(2,0)) + 4*nt(0,2)*nt(1,0)
             #denominator = 4*nt(1,0)*(j*(nt(0,1) + nt(0,2) - 3) + nt(0,1) + nt(0,2)) + nt(2,0)*(j*(4*nt(0,1) - 11*nt(0,2) + 6) + 4*nt(0,1) - 11 * nt(0,2)) + 6 *j*(2*nt(0,2) - 2*nt(0,1))
@@ -118,7 +118,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
             denominator = (6* j* (-2* nt(0,1) + nt(0,2)) +  4* (nt(0,1) + nt(0,2) + j *(-3 + nt(0,1) + nt(0,2)))* nt(1,0) + (4* nt(0,1) +  j* (6 + 4* nt(0,1) - 11* nt(0,2)) - 11* nt(0,2))* nt(2,0))
             
             Q= numerator/denominator
-            print("   Q:",Q, Qn)
+            #print("   Q:",Q, Qn)
             
             #numerator = 11*(j*nt(2,2) - nt(0,2)*nt(2,0))
             #denom_1 = j*(4*nt(0,1) + nt(0,2) + 4*nt(1,0) + 4*nt(1,1) + 4*nt(1,2) + nt(2,0) + 4*nt(2,1) - 11*nt(2,2))
@@ -127,16 +127,16 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         
             d = 1 - np.power(Q, (6/11 * 1/k))
         else:
-            print("printing t=1 equation since coverage is low:", cov_1, cov_2)
+            #print("printing t=1 equation since coverage is low:", cov_1, cov_2)
             numerator = j * ( -5*(eta1**2 +eta2**2) + 22*(eta1+ eta2+ psi_1 + psi_2) ) + 4 * (1+j) * eta2*eta1 *( eta1 + eta2 - 5 )
-            print(numerator)
+            #print(numerator)
             power = (6/11 * 1/k)
-            print(power)
+            #print(power)
             denominator = eta1*eta2*(11*eta2*eta1 +24 -18*eta2 -18*eta1)*(1 + j) + 6*j*(eta2**2 + eta1**2)
-            print(denominator)
+            #print(denominator)
             Q=numerator/denominator
             #print("   eta:",n11,n12, eta1,eta1*(2-eta1),n21,n22, eta2,eta2*(2-eta2))
-            print("   Q:",Q, Qn)
+            #print("   Q:",Q, Qn)
             d = 1 - np.power(numerator/denominator, (6/11 * 1/k))
 
     if tran or math.isnan(d):
@@ -145,7 +145,7 @@ def estimate_dipskmer_dist(sample_1, sample_2, lib_1, lib_2, ce, le, ee, rl, k, 
         else:
             d = 'nan'
     d = 0.0 if float(d) < 0.0 else round(float(d), 6)
-    print("distance:", sample_1, sample_2, ":", str(d), 'xi:', xi_1, xi_2)
+    #print("distance:", sample_1, sample_2, ":", str(d), 'xi:', xi_1, xi_2)
     return sample_1, sample_2, d
 
 # NOTE: OBSOLETE

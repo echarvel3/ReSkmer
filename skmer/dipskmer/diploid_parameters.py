@@ -35,7 +35,7 @@ def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     
     if False:
         iters = 30
-        print(np.array([get_theta_arr(x, count) for x in range(iters)]))
+        #print(np.array([get_theta_arr(x, count) for x in range(iters)]))
 
     if (ind < 2):
         eps = e if (e is not None) else default_error_rate
@@ -48,10 +48,10 @@ def estimate_diploid_cov(sample, count, k, e, l, theta_arg):
     else:
         r =  count[ind + 1] / count[ind]
         rn =  count[ind + 2] / count[ind+1]
-        print(r, rn)
+        #print(r, rn)
         if (8 * (2 + ind) * rn > 9 * (1 + ind) * r) or (theta_arg is not None):
             theta = default_theta if (theta_arg is None) else theta_arg
-            print(r)
+            #print(r)
             Q = (1-theta)**k
             xi = minimize(lambda x: (r+x*(-2* np.exp(x)+2* (-2**ind+np.exp(x)) * Q)/((1+ind)* (2* np.exp(x)+(2**ind-2* np.exp(x))*Q )))**2, 0.5, bounds = [[0,100]]).x[0]
             if theta_arg is None:

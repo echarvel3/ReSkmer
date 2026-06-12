@@ -80,7 +80,7 @@ def reference(args):
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
                                                             coverage_threshold, args.S, True, False)) for seq in sequences]
     elif (skmer_ver == "dipskmer") or (skmer_ver == "reskmer + dipskmer"):
-        print(skmer_ver)
+        #print(skmer_ver)
         results_sketch = [pool_sketch.apply_async(sketch, args=(seq, args.l, cov_est, err_est, args.k, args.s,
                                                             dip_coverage_threshold, args.S, False, True, read_len)) for seq in sequences]
     else:

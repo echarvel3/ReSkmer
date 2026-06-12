@@ -51,18 +51,18 @@ def sequence_stat(sequence):
 def check_mash_files(msh, copy_thres):
     #for msht in [msh,msh + "t%d" %copy_thres]:
     mshf = msh+".msh"
-    print("mshf",mshf)
+    #print("mshf",mshf)
     if (os.path.exists(mshf)):
         mashcounts = run(["mash","info","-c",mshf],capture_output=True, text=True)
         et = int(mashcounts.stdout.split('\n')[1].split('\t')[1])
-        print("Detected sketch %s with t=%d looking for %d" %(mshf,et,copy_thres))
+        #print("Detected sketch %s with t=%d looking for %d" %(mshf,et,copy_thres))
         if et == copy_thres:
             return mshf
-        print("et", et, "copy thres", copy_thres)
+        #print("et", et, "copy thres", copy_thres)
     return None
 
 def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, is_diploid = False, re = None):
-    print("sketching")
+    #print("sketching")
     sample = os.path.basename(sequence).rsplit('.f', 1)[0]
     sample_dir = os.path.join(lib, sample)
     msh = os.path.join(sample_dir, sample)
@@ -74,16 +74,16 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     #print(r_len)
     #print(cov, cov_thres)
     if cov == "NA" and eps == 0:
-        print("1")
+        #print("1")
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
         return
     elif eps == "NA":
-        print("2")
+        #print("2")
         if is_diploid:
             msh = (msh+ "t1") if r_len is not None else (msh)
             if check_mash_files(msh, 1):
-                print("Skipping sketching, as existing sketch seems right" )
+                #print("Skipping sketching, as existing sketch seems right" )
                 return
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
@@ -96,18 +96,18 @@ def sketch(sequence, lib, ce, ee, k, s, cov_thres, seed, has_spectrum = False, i
     
     msh = (msh+ "t%d" %copy_thres) if r_len is not None else (msh)
     if check_mash_files(msh, copy_thres):
-        print("Skipping sketching, as existing sketch seems right" )
+        #print("Skipping sketching, as existing sketch seems right" )
         return
 
-    print("sketching infto %s" %msh)
+    #print("sketching infto %s" %msh)
     if copy_thres ==1 or eps == 0.0 or has_spectrum:
-        print("3")
+        #print("3")
         # ReSkmer or below Skmer high-cov threshold...
         call(["mash", "sketch", "-k", str(k), "-s", str(s), "-S", str(seed), "-r", "-o", msh, sequence], stderr=open(
             os.devnull, 'w'))
     else:
         # high-coverage Skmer
-        print("HERE")
+        #print("HERE")
         call(["mash", "sketch", "-m", str(copy_thres), "-k", str(k), "-s", str(s), "-S", str(seed), "-o", msh,
               sequence], stderr=open(os.devnull, 'w'))
     return

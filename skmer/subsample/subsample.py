@@ -53,7 +53,7 @@ def estimate_stats(sequence, nth):
     return sample, cov, g_len, eps, l, n_reads
 
 def sample_reads(sequence, seed, bl_sz, bs_dir):
-    print(sequence, seed, bl_sz, bs_dir)
+    #print(sequence, seed, bl_sz, bs_dir)
     try:
         os.makedirs(bs_dir)
     except OSError as Error:
@@ -114,7 +114,7 @@ def subsample(args):
     # Making a list of sample names
     files_names = [f for f in os.listdir(args.input_dir)
                    if True in (fnmatch.fnmatch(f, '*' + form) for form in formats)]
-    print(files_names)
+    #print(files_names)
     samples_names = [f.rsplit('.f', 1)[0] for f in files_names]
     # Check if refs have duplicate entry
     if len(samples_names) != len(set(samples_names)):
@@ -154,10 +154,10 @@ def subsample(args):
     results_cov = [pool_cov.apply_async(estimate_stats, args=(seq, n_proc_cov))
                     for seq in sequences]
     
-    print("-1")
+    #print("-1")
     for result in results_cov:
         (name, coverage, genome_length, error_rate, read_length, rd_cnt) = result.get(9999999)
-        print(name, coverage, genome_length, error_rate, read_length, rd_cnt)
+        #print(name, coverage, genome_length, error_rate, read_length, rd_cnt)
 
         cov_est[name] = coverage
         len_est[name] = genome_length
@@ -166,12 +166,12 @@ def subsample(args):
         sample_read_cnt[name] = rd_cnt
         bs_kmer_sum[name] = args.s
     
-    print("0")
+    #print("0")
     pool_cov.close()
     pool_cov.join()
     #print(sample_read_cnt)
 
-    print("1")
+    #print("1")
     # Check whether inputs are reads or assemblies
     if "NA" in list(read_len.values()):
         input_data = 'assemblies'
@@ -210,14 +210,14 @@ def subsample(args):
 
 
     # Computing replicates
-    print(args.b)
+    #print(args.b)
     for b in range (0, args.b):
 
         sys.stderr.write('[{0}] Computing replicate {1} using {2} processors...\n'.format(skmer_ver, b, n_pool))
 
         # Creating replicate directory
         sub_rep = os.path.join(args.sub, "rep" + str(args.i))
-        print(sub_rep)
+        #print(sub_rep)
         args.i +=1
         try:
             os.makedirs(sub_rep)
@@ -227,7 +227,7 @@ def subsample(args):
 
         # Creating replicate/library directory
         sub_lib = os.path.join(sub_rep, 'library')
-        print(sub_lib)
+        #print(sub_lib)
         try:
             os.makedirs(sub_lib)
         except OSError as Error:
@@ -462,7 +462,7 @@ def correction(args):
     # List replicate directories
     try:
         for dir in [name for name in os.listdir(args.sub) if 'rep' in name]:
-            print(dir)
+            #print(dir)
             rep_mtrx = os.path.join(args.sub, dir, "dimtrx_rep.txt")
             df = pd.read_csv(rep_mtrx, header = 0, sep='\t', skiprows = 0)
 
